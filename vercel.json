@@ -1,5 +1,14 @@
 {
   "version": 2,
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/api/sql", "destination": "/api/sql.js" },
+    { "source": "/merger", "destination": "/merger.html" },
+    { "source": "/gold", "destination": "/gold-jccb-final-main/index.html" },
+    { "source": "/fd", "destination": "/fd-module/index.html" },
+    { "source": "/od", "destination": "/od-module/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
