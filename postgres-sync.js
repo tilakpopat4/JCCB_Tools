@@ -57,7 +57,7 @@ const PostgresSync = (function () {
       throw new Error("Invalid connection string format. Example: postgresql://user:password@ep-xyz.aws.neon.tech/neondb?sslmode=require");
     }
 
-    // Try via proxy endpoint first if running on server/local
+    // 1. Try via server proxy endpoint (/api/sql)
     try {
       const proxyResp = await fetch("/api/sql", {
         method: "POST",
@@ -68,41 +68,39 @@ const PostgresSync = (function () {
         body: JSON.stringify({ query: sql, params, connString: connStr })
       });
 
-      if (proxyResp.ok) {
-        return await proxyResp.json();
-      } else {
-        const proxyErr = await proxyResp.json().catch(() => null);
-        if (proxyErr && proxyErr.error) {
-          throw new Error(proxyErr.error);
-        }
+      const proxyData = await proxyResp.json().catch(() => null);
+      if (!proxyResp.ok) {
+        const errMsg = (proxyData && (proxyData.message || proxyData.error)) || `Proxy error (${proxyResp.status})`;
+        throw new Error(errMsg);
       }
+      return proxyData;
     } catch (proxyErr) {
-      // If error came from Neon proxy failure, rethrow
-      if (proxyErr && proxyErr.message && !proxyErr.message.includes("fetch")) {
+      // If error came from actual Neon rejection (e.g. wrong password), throw immediately so user sees the real cause
+      if (proxyErr && proxyErr.message && !proxyErr.message.toLowerCase().includes("failed to fetch")) {
         throw proxyErr;
       }
     }
 
-    // Direct endpoint fetch
-    const resp = await fetch(parsed.httpEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Neon-Connection-String": connStr
-      },
-      body: JSON.stringify({ query: sql, params })
-    });
+    // 2. Direct endpoint fetch
+    try {
+      const resp = await fetch(parsed.httpEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Neon-Connection-String": connStr
+        },
+        body: JSON.stringify({ query: sql, params })
+      });
 
-    if (!resp.ok) {
-      let errText = await resp.text();
-      try {
-        const errJson = JSON.parse(errText);
-        if (errJson.message) errText = errJson.message;
-      } catch (e) { }
-      throw new Error(errText);
+      const respData = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        const errText = (respData && (respData.message || respData.error)) || `HTTP Error (${resp.status})`;
+        throw new Error(errText);
+      }
+      return respData;
+    } catch (directErr) {
+      throw directErr;
     }
-
-    return await resp.json();
   }
 
   // Initialize DB Client & Verify Live Connection
