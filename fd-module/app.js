@@ -1434,6 +1434,14 @@ const FDApp = {
     };
 
     localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
+    
+    // Cloud Database Dual-Write Sync (Neon Postgres)
+    if (window.PostgresSync && typeof window.PostgresSync.syncFDForm === 'function') {
+      try {
+        window.PostgresSync.syncFDForm(savedList[formId]);
+      } catch(e) {}
+    }
+
     alert(`✓ Record saved successfully!\nCustomer: ${custName}\nRef ID: ${formId}`);
     
     // Clear form so next time user opens FD Entry Form, it is fresh & blank

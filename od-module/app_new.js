@@ -546,6 +546,13 @@ const OverdraftApp = {
     allRecords[recordId] = record;
     localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
 
+    // Cloud Database Dual-Write Sync (Neon Postgres)
+    if (window.PostgresSync && typeof window.PostgresSync.syncODLoan === 'function') {
+      try {
+        window.PostgresSync.syncODLoan(record);
+      } catch(e) {}
+    }
+
     alert(`✓ ઓવરડ્રાફ્ટ લોન રેકોર્ડ સફળતાપૂર્વક સેવ થયો!\nગ્રાહકનું નામ: ${cust1Name.toUpperCase()}\nલોન રકમ: ₹ ${loanAmount.toLocaleString('en-IN')}`);
     
     this.currentRecordId = null;

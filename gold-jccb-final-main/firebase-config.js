@@ -481,17 +481,11 @@ const FirebaseService = {
             } catch (e) {}
         }
 
-        // 2. Guaranteed REST API cloud write fallback
-        try {
-            const fsDoc = this.toFirestoreDocument(payload);
-            await fetch(`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/loans/${loanId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(fsDoc)
-            });
-            console.log("[Firebase REST] Loan synced to Firestore cloud:", loanId);
-        } catch (restErr) {
-            console.warn("[Firebase REST] REST sync error:", restErr);
+        // 3. PostgreSQL / Neon Serverless Cloud Database Dual-Write Sync
+        if (window.PostgresSync && typeof window.PostgresSync.syncGoldLoan === "function") {
+            try {
+                window.PostgresSync.syncGoldLoan(payload).catch(() => {});
+            } catch (pgErr) {}
         }
 
         return payload;
