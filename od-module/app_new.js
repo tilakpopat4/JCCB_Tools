@@ -669,16 +669,17 @@ const OverdraftApp = {
 
     document.querySelectorAll('.tab-btn').forEach(b => {
       if (b.dataset.tab === tab) {
-        b.classList.add('nav-tab-active');
-        b.classList.remove('text-slate-600', 'hover:bg-slate-100');
+        b.classList.add('nav-tab-active', 'bg-blue-900', 'text-amber-300', 'border-amber-400', 'font-black', 'shadow');
+        b.classList.remove('text-slate-300', 'hover:bg-slate-800', 'border-transparent');
       } else {
-        b.classList.remove('nav-tab-active');
-        b.classList.add('text-slate-600', 'hover:bg-slate-100');
+        b.classList.remove('nav-tab-active', 'bg-blue-900', 'text-amber-300', 'border-amber-400', 'font-black', 'shadow');
+        b.classList.add('text-slate-300', 'hover:bg-slate-800', 'border-transparent');
       }
     });
 
     if (tab === 'register') this.updateRegisterTable();
     if (tab === 'reports') this.updateReportMetrics();
+    if (window.lucide) window.lucide.createIcons();
   },
 
   // Update Form Register Table

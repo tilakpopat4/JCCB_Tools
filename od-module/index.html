@@ -93,38 +93,79 @@
       </div>
     </header>
 
-    <!-- Navigation Tabs Bar -->
-    <div class="bg-white border-b border-slate-200 shadow-sm sticky top-[60px] z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-        <nav class="flex space-x-1 sm:space-x-3 py-2 overflow-x-auto">
-          
-          <button type="button" onclick="OverdraftApp.switchTab('form')" data-tab="form" class="tab-btn nav-tab-active px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition border border-transparent">
-            <i data-lucide="file-text" class="w-4 h-4"></i>
-            <span>૧. લોન એન્ટ્રી ફોર્મ (Entry Form)</span>
-          </button>
+    <!-- Main Workspace with Left Sidebar & Content Area -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden min-h-[calc(100vh-120px)]">
+      
+      <!-- ==================== LEFT SIDEBAR NAVIGATION PANEL ==================== -->
+      <aside class="w-full md:w-72 bg-slate-900 text-slate-200 p-4 border-r-2 border-slate-700 flex flex-col justify-between shrink-0 space-y-6 no-print">
+        
+        <div class="space-y-4">
+          <!-- Navigation Title -->
+          <div class="pb-2.5 border-b border-slate-700">
+            <span class="text-[10px] font-black uppercase text-amber-400 tracking-wider">OD LOAN CONTROL PANEL</span>
+            <div class="text-sm font-black text-white">મોડ્યુલ મેનુ</div>
+          </div>
 
-          <button type="button" onclick="OverdraftApp.switchTab('register')" data-tab="register" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition border border-transparent text-slate-600 hover:bg-slate-100">
-            <i data-lucide="table-2" class="w-4 h-4 text-emerald-600"></i>
-            <span>૨. ફોર્મ રજીસ્ટર (Loan Register)</span>
-            <span id="registerCountBadge" class="ml-1 bg-amber-400 text-blue-950 px-2 py-0.5 rounded-full font-black text-[10px]">0</span>
-          </button>
+          <!-- Main Navigation Links -->
+          <nav class="space-y-2">
+            
+            <!-- 1. OD Entry Form -->
+            <button type="button" onclick="OverdraftApp.switchTab('form')" data-tab="form" class="tab-btn sidebar-nav-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold flex items-center gap-3 transition border nav-tab-active bg-blue-900 text-amber-300 border-amber-400 font-black shadow">
+              <i data-lucide="file-edit" class="w-4 h-4 text-amber-400"></i>
+              <span>૧. લોન એન્ટ્રી ફોર્મ (Entry Form)</span>
+            </button>
 
-          <button type="button" onclick="OverdraftApp.switchTab('reports')" data-tab="reports" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition border border-transparent text-slate-600 hover:bg-slate-100">
-            <i data-lucide="bar-chart-3" class="w-4 h-4 text-blue-600"></i>
-            <span>૩. રીપોર્ટ મોડ્યુલ (Reports & Analytics)</span>
-          </button>
+            <!-- 2. OD Form Register -->
+            <button type="button" onclick="OverdraftApp.switchTab('register')" data-tab="register" class="tab-btn sidebar-nav-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold flex items-center justify-between transition border border-transparent text-slate-300 hover:bg-slate-800">
+              <div class="flex items-center gap-3">
+                <i data-lucide="table-2" class="w-4 h-4 text-emerald-400"></i>
+                <span>૨. ફોર્મ રજીસ્ટર (Loan Register)</span>
+              </div>
+              <span id="registerCountBadge" class="bg-amber-400 text-blue-950 px-2 py-0.5 rounded-full font-black text-[10px]">0</span>
+            </button>
 
-        </nav>
+            <!-- 3. Reports & Analytics -->
+            <button type="button" onclick="OverdraftApp.switchTab('reports')" data-tab="reports" class="tab-btn sidebar-nav-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold flex items-center gap-3 transition border border-transparent text-slate-300 hover:bg-slate-800">
+              <i data-lucide="bar-chart-3" class="w-4 h-4 text-blue-400"></i>
+              <span>૩. રીપોર્ટ મોડ્યુલ (Reports & Analytics)</span>
+            </button>
 
-        <div class="hidden md:flex items-center gap-2 text-xs font-bold text-slate-500">
-          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
-          <span>A4 Single-Page Certified</span>
+          </nav>
+
+          <!-- Quick Backup Utilities Box -->
+          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2.5">
+            <div class="text-[11px] font-bold text-amber-300 flex items-center justify-between border-b border-slate-800 pb-1.5">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-blue-400"></i> OD Backup & Restore
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button type="button" onclick="CentralBackup && CentralBackup.downloadSingleBackup('od', 'xlsx')" class="py-1 px-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded text-[10px] font-bold border border-slate-700 flex items-center justify-center gap-1 cursor-pointer">
+                <i data-lucide="file-spreadsheet" class="w-3 h-3 text-emerald-400"></i> .xlsx (Excel)
+              </button>
+              <button type="button" onclick="CentralBackup && CentralBackup.downloadSingleBackup('od', 'csv')" class="py-1 px-1.5 bg-slate-800 hover:bg-slate-700 text-blue-300 rounded text-[10px] font-bold border border-slate-700 flex items-center justify-center gap-1 cursor-pointer">
+                <i data-lucide="file-text" class="w-3 h-3 text-blue-400"></i> .csv (Data)
+              </button>
+            </div>
+            <label class="w-full py-1.5 px-2 bg-blue-900/60 hover:bg-blue-800 text-amber-200 rounded text-[11px] font-black border border-blue-600/50 flex items-center justify-center gap-1.5 cursor-pointer shadow">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-300"></i> Restore (.xlsx / .csv)
+              <input type="file" accept=".xlsx, .xls, .csv, .json" onchange="CentralBackup && CentralBackup.restorePortal('od', this.files[0])" class="hidden">
+            </label>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Main Content Container -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full">
+        <!-- Sidebar Footer -->
+        <div class="pt-3 border-t border-slate-800 text-[10px] text-slate-400 space-y-1">
+          <div class="font-bold text-amber-300">The Junagadh Commercial Co-Op Bank</div>
+          <div class="text-slate-400 flex items-center gap-1 font-semibold">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i> A4 Single-Page Certified
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- Main Content Container -->
+      <main class="flex-1 p-4 sm:p-6 overflow-y-auto max-w-full">
       
       <!-- ==================== TAB 1: OVERDRAFT LOAN ENTRY FORM ==================== -->
       <div id="formView" class="space-y-6">
@@ -547,6 +588,7 @@
       </div>
 
     </main>
+    </div>
 
     <!-- Standard Unified Footer -->
     <footer class="w-full bg-[#020b33] text-center py-3.5 border-t border-slate-800 text-xs text-slate-400 no-print mt-auto">
