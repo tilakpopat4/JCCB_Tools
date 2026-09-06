@@ -1,0 +1,11 @@
+{
+  "name": "jccb-tools",
+  "version": "1.0.0",
+  "description": "The Junagadh Commercial Co-operative Bank Ltd. Banking Portals",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo 'Static build ok'"
+  },
+  "dependencies": {}
+}
