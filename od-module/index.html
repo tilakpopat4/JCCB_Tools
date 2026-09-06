@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Junagadh Commercial Co-Operative Bank Ltd. - Overdraft Loan Against FD Module</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SheetJS CDN (XLSX) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    if (typeof XLSX === "undefined") {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');
+    }
+  </script>
+  <!-- Central Backup Engine -->
+  <script src="../central-backup.js"></script>
+  <!-- Bank Custom Styles & Print CSS -->
+  <link rel="stylesheet" href="styles.css?v=2.5">
+  <script>
+    (function() {
+      try {
+        let s = localStorage.getItem('jccb_user_session') || sessionStorage.getItem('jccb_user_session') || sessionStorage.getItem('jccb_active_session');
+        if (!s) {
+          const defS = { code: "99", name: "99 HEAD OFFICE", role: "Super Admin", isHO: true, isAdmin: true, loginTime: Date.now() };
+          const str = JSON.stringify(defS);
+          localStorage.setItem('jccb_user_session', str);
+          sessionStorage.setItem('jccb_user_session', str);
+          sessionStorage.setItem('jccb_active_session', str);
+        }
+      } catch(e) { }
+    })();
+  </script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-900 flex flex-col font-sans">
+
+  <!-- ==================== ON-SCREEN APPLICATION VIEW (NO-PRINT) ==================== -->
+  <div class="no-print flex-1 flex flex-col">
+    
+    <!-- Top Bank Header Bar -->
+    <header class="bg-gradient-to-r from-[#041562] via-[#082080] to-[#020b33] text-white shadow-xl sticky top-0 z-40 border-b-4 border-[#FDBE34]">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap justify-between items-center gap-3">
+        
+        <div class="flex items-center space-x-3">
+          <!-- Bank Official Emblem / Logo -->
+          <div class="w-11 h-11 rounded-full bg-white p-0.5 shadow-xl border-2 border-[#FDBE34] shrink-0 flex items-center justify-center overflow-hidden">
+            <img src="../jccb-logo.png" alt="JCCB Logo" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='jccb-logo.png';">
+          </div>
+          <div>
+            <h1 class="text-base sm:text-lg font-black tracking-tight text-white uppercase flex items-center gap-2">
+              THE JUNAGADH COMMERCIAL CO-OPERATIVE BANK LTD.
+            </h1>
+            <p class="text-[11px] sm:text-xs text-[#FDBE34] font-bold font-['Noto_Sans_Gujarati']">
+              ધી જૂનાગઢ કોમર્શિયલ કો-ઓપરેટીવ બેંક લી. • OVERDRAFT (OD) PORTAL
+            </p>
+          </div>
+        </div>
+
+        <!-- Session Status & Quick Actions -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Branch & Role Indicator -->
+          <div class="hidden sm:flex items-center gap-2 bg-white/10 border border-[#FDBE34]/40 px-3 py-1.5 rounded-xl">
+            <i class="fa-solid fa-building-columns text-[#FDBE34] text-xs"></i>
+            <span id="user-branch-text" class="text-xs font-bold text-white">99 HEAD OFFICE</span>
+            <span id="user-role-badge" class="px-2 py-0.5 bg-[#FDBE34]/20 text-[#FDBE34] border border-[#FDBE34]/50 rounded-full text-[10px] font-black">
+              👑 Super Admin
+            </span>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <button type="button" onclick="OverdraftApp.resetForm(); OverdraftApp.switchTab('form');" class="px-3 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-xs font-bold rounded-lg border border-slate-700 transition flex items-center gap-1.5 text-white shadow cursor-pointer">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-[#FDBE34]"></i> New Form
+          </button>
+          <button type="button" onclick="OverdraftApp.saveRecord()" class="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5 text-white cursor-pointer">
+            <i data-lucide="save" class="w-3.5 h-3.5 text-emerald-200"></i> Save
+          </button>
+          <button type="button" onclick="OverdraftApp.openPrintPreview()" class="px-3.5 py-1.5 bg-[#FDBE34] hover:bg-[#e6a824] text-[#041562] text-xs font-black rounded-lg shadow transition flex items-center gap-1.5 border border-[#FDBE34] cursor-pointer">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i> Print / PDF
+          </button>
+
+          <!-- Return to Launcher Hub -->
+          <a href="../merger.html" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold rounded-lg border border-slate-600 transition flex items-center gap-1.5 shadow cursor-pointer">
+            <i class="fa-solid fa-cubes text-[#FDBE34]"></i> All Portals
+          </a>
+
+          <!-- Logout Button -->
+          <button type="button" onclick="handleLogout()" class="px-3 py-1.5 bg-red-950/90 hover:bg-red-900 text-red-200 border border-red-500/50 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs Bar -->
+    <div class="bg-white border-b border-slate-200 shadow-sm sticky top-[60px] z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+        <nav class="flex space-x-1 sm:space-x-3 py-2 overflow-x-auto">
+          
+          <button type="button" onclick="OverdraftApp.switchTab('form')" data-tab="form" class="tab-btn nav-tab-active px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition border border-transparent">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span>૧. લોન એન્ટ્રી ફોર્મ (Entry Form)</span>
+          </button>
+
+          <button type="button" onclick="OverdraftApp.switchTab('register')" data-tab="register" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition border border-transparent text-slate-600 hover:bg-slate-100">
+            <i data-lucide="table-2" class="w-4 h-4 text-emerald-600"></i>
+            <span>૨. ફોર્મ રજીસ્ટર (Loan Register)</span>
+            <span id="registerCountBadge" class="ml-1 bg-amber-400 text-blue-950 px-2 py-0.5 rounded-full font-black text-[10px]">0</span>
+          </button>
+
+          <button type="button" onclick="OverdraftApp.switchTab('reports')" data-tab="reports" class="tab-btn px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition border border-transparent text-slate-600 hover:bg-slate-100">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-blue-600"></i>
+            <span>૩. રીપોર્ટ મોડ્યુલ (Reports & Analytics)</span>
+          </button>
+
+        </nav>
+
+        <div class="hidden md:flex items-center gap-2 text-xs font-bold text-slate-500">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+          <span>A4 Single-Page Certified</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full">
+      
+      <!-- ==================== TAB 1: OVERDRAFT LOAN ENTRY FORM ==================== -->
+      <div id="formView" class="space-y-6">
+        
+        <form id="overdraftForm" onsubmit="event.preventDefault(); OverdraftApp.saveRecord();">
+          
+          <!-- Section 1: Branch & Date Meta -->
+          <div class="form-card">
+            <div class="section-header">
+              <div class="flex items-center gap-2 font-bold text-sm">
+                <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 flex items-center justify-center text-xs font-black">1</span>
+                <span>બેંક શાખા અને તારીખ (BRANCH & DATE DETAILS)</span>
+              </div>
+              <span class="badge-gold">સત્તાવાર વિગત</span>
+            </div>
+
+            <div class="p-5">
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                
+                <!-- Branch Selection Dropdown -->
+                <div class="md:col-span-8">
+                  <label class="input-label" for="branchSelect">
+                    શાખાનું નામ (Branch Name) <span class="req">*</span>
+                  </label>
+                  <select id="branchSelect" class="form-select font-black text-blue-950 bg-blue-50/50 border-2 border-blue-300">
+                    <!-- Populated dynamically via JS -->
+                  </select>
+                </div>
+
+                <!-- Date Field -->
+                <div class="md:col-span-4">
+                  <label class="input-label" for="loanDate">
+                    આજની તારીખ (Today's Date) <span class="req">*</span>
+                  </label>
+                  <input type="date" id="loanDate" class="form-input font-bold text-slate-900 border-2 border-blue-300" required>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+
+          <!-- Section 2: Customer Particulars (Primary + Dynamic Joint Applicants) -->
+          <div class="form-card">
+            <div class="section-header">
+              <div class="flex items-center gap-2 font-bold text-sm">
+                <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 flex items-center justify-center text-xs font-black">2</span>
+                <span>ગ્રાહકની વિગતો (CUSTOMER & JOINT APPLICANT DETAILS)</span>
+              </div>
+              
+              <!-- Dynamic Add Joint Customer Button -->
+              <button type="button" id="btnAddJoint" onclick="OverdraftApp.addJointCustomer()" class="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-blue-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1.5 border border-amber-500 cursor-pointer">
+                <i data-lucide="user-plus" class="w-4 h-4"></i> + જોઇન્ટ નામ ઉમેરો (+ Add Joint)
+              </button>
+            </div>
+
+            <div class="p-5 space-y-4">
+              
+              <!-- Primary Customer (Customer 1) -->
+              <div class="p-4 bg-blue-50/60 rounded-xl border-2 border-blue-300 space-y-3">
+                <div class="flex items-center justify-between border-b-2 border-blue-200 pb-2">
+                  <div class="flex items-center gap-2 font-black text-sm text-blue-950">
+                    <span class="w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center text-xs">1</span>
+                    <span>મુખ્ય ગ્રાહક (Primary Customer) <span class="req">*</span></span>
+                  </div>
+                  <span class="text-xs text-blue-900 font-bold bg-blue-200 px-2 py-0.5 rounded">First Applicant</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                  <div class="md:col-span-3">
+                    <label class="input-label" for="customerId_1">કસ્ટમર આઇડી (Customer ID) <span class="req">*</span></label>
+                    <input type="text" id="customerId_1" class="form-input font-bold uppercase" placeholder="દા.ત. CUST001" required>
+                  </div>
+                  <div class="md:col-span-4">
+                    <label class="input-label" for="customerName_1">ગ્રાહકનું નામ (Customer Full Name) <span class="req">*</span></label>
+                    <input type="text" id="customerName_1" class="form-input font-bold uppercase text-blue-950" placeholder="સંપૂર્ણ નામ દાખલ કરો" required>
+                  </div>
+                  <div class="md:col-span-5">
+                    <label class="input-label" for="customerAddress_1">ગ્રાહકનું સરનામું (Residential Address)</label>
+                    <input type="text" id="customerAddress_1" class="form-input uppercase" placeholder="સરનામું દાખલ કરો">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Container for Dynamically Added Joint Customers (Customers 2, 3, 4) -->
+              <div id="jointCustomersContainer" class="space-y-4">
+                <!-- Dynamically injected via OverdraftApp.addJointCustomer() -->
+              </div>
+
+            </div>
+          </div>
+
+
+          <!-- Section 3: Loan Particulars & Fixed 15-Digit Savings Account -->
+          <div class="form-card">
+            <div class="section-header">
+              <div class="flex items-center gap-2 font-bold text-sm">
+                <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 flex items-center justify-center text-xs font-black">3</span>
+                <span>લોન, વ્યાજદર અને સેવિંગ ખાતાની વિગત (LOAN & ACCOUNT PARTICULARS)</span>
+              </div>
+              <span class="badge-gold">Auto Words Active</span>
+            </div>
+
+            <div class="p-5 space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                
+                <!-- Loan Amount -->
+                <div class="md:col-span-4">
+                  <label class="input-label" for="loanAmount">
+                    લોનની રકમ રૂ. (Loan Amount ₹) <span class="req">*</span>
+                  </label>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center font-bold text-slate-500">₹</span>
+                    <input type="number" id="loanAmount" class="form-input pl-8 font-black text-blue-950 text-base" placeholder="દા.ત. 100000" required>
+                  </div>
+                </div>
+
+                <!-- Interest Rate (%) -->
+                <div class="md:col-span-3">
+                  <label class="input-label" for="interestRate">
+                    વ્યાજનો દર (%) (ROI % p.a.) <span class="req">*</span>
+                  </label>
+                  <div class="relative">
+                    <input type="text" id="interestRate" class="form-input font-black text-center text-blue-950 border-2 border-amber-400 bg-amber-50/50" placeholder="દા.ત. 8.50" value="8.50" required>
+                    <span class="absolute inset-y-0 right-0 pr-3 flex items-center font-bold text-slate-500">%</span>
+                  </div>
+                </div>
+
+                <!-- Compulsory 15-Digit Saving Account Number -->
+                <div class="md:col-span-5">
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="input-label mb-0" for="savingAccountNo">
+                      સેવિંગ ખાતા નંબર (15-Digit Saving A/c) <span class="req">*</span>
+                    </label>
+                    <div id="savingAccValidationBadge" class="text-[11px] font-bold">
+                      <span class="text-amber-600 font-semibold">ફરજિયાત ૧૫ અંક</span>
+                    </div>
+                  </div>
+                  <input type="text" id="savingAccountNo" maxlength="15" class="form-input font-mono font-black text-blue-950 tracking-wider text-base border-2 border-blue-300" placeholder="001010100012345" required>
+                  <p class="text-[10px] text-slate-500 mt-1">કમ્પલસરી ન્યુમેરીક ફીલ્ડ તથા ફીક્સ ૧૫ ડીજીટ નંબર દાખલ કરો.</p>
+                </div>
+
+              </div>
+
+              <!-- Amount in Gujarati Words & English Words (Automatic) -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+                <div>
+                  <label class="input-label text-blue-950 font-bold" for="loanAmountWordsGuj">
+                    અંકે રકમ રૂપીયા (ગુજરાતીમાં - આપમેળે) :
+                  </label>
+                  <input type="text" id="loanAmountWordsGuj" class="form-input highlight-readonly font-bold font-gujarati" readonly placeholder="અંકે રકમ આપમેળે લખાશે...">
+                </div>
+
+                <div>
+                  <label class="input-label text-blue-950 font-bold" for="loanAmountWordsEng">
+                    Amount in Words (English - Auto) :
+                  </label>
+                  <input type="text" id="loanAmountWordsEng" class="form-input highlight-readonly font-bold uppercase" readonly placeholder="AUTO AMOUNT IN WORDS...">
+                </div>
+              </div>
+
+              <!-- Purpose of Loan -->
+              <div class="pt-2">
+                <label class="input-label" for="loanPurpose">ધિરાણનો હેતુ (Purpose of Loan)</label>
+                <input type="text" id="loanPurpose" class="form-input uppercase font-semibold" placeholder="દા.ત. PERSONAL USE / BUSINESS / MEDICAL / EDUCATION" value="PERSONAL USE">
+              </div>
+
+            </div>
+          </div>
+
+
+          <!-- Section 4: Dynamic Fixed Deposit Receipts Table -->
+          <div class="form-card">
+            <div class="section-header">
+              <div class="flex items-center gap-2 font-bold text-sm">
+                <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 flex items-center justify-center text-xs font-black">4</span>
+                <span>ફિક્સ ડીપોઝીટ રસીદોનું પત્રક (FIXED DEPOSIT RECEIPTS TABLE)</span>
+              </div>
+              
+              <!-- Dynamic Add Receipt Row Button -->
+              <button type="button" id="btnAddFdRow" onclick="OverdraftApp.addFdReceiptRow()" class="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs rounded-lg shadow transition flex items-center gap-1.5 border border-emerald-600 cursor-pointer">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i> + રસીદ ઉમેરો (+ Add Receipt)
+              </button>
+            </div>
+
+            <div class="p-5 space-y-3">
+              <p class="text-xs text-slate-600 font-semibold">
+                અહીં ગ્રાહકની ફિક્સ ડિપોઝીટ રસીદોની વિગત ભરો. જરૂર મુજબ <strong class="text-blue-950">(+ રસીદ ઉમેરો)</strong> બટનથી ગમે તેટલી લાઈનો ઉમેરી શકાશે.
+              </p>
+
+              <!-- Responsive Table Container -->
+              <div class="overflow-x-auto border-2 border-slate-300 rounded-xl shadow-sm">
+                <table class="w-full text-left border-collapse" id="fdReceiptsTable">
+                  <thead>
+                    <tr class="bg-slate-800 text-white text-xs font-bold uppercase tracking-wider">
+                      <th class="p-2.5 text-center w-12 border-r border-slate-700">ક્રમ</th>
+                      <th class="p-2.5 border-r border-slate-700 min-w-[150px]">સર્ટીફીકેટ નંબર <span class="req">*</span></th>
+                      <th class="p-2.5 border-r border-slate-700 min-w-[140px]">થાપણ મૂક્યા તારીખ</th>
+                      <th class="p-2.5 border-r border-slate-700 min-w-[140px]">થાપણની પાકતી તારીખ</th>
+                      <th class="p-2.5 border-r border-slate-700 text-right min-w-[150px]">થાપણની રકમ રૂ. <span class="req">*</span></th>
+                      <th class="p-2.5 border-r border-slate-700 text-right min-w-[150px]">લોનની રકમ રૂ.</th>
+                      <th class="p-2.5 text-center w-12">એક્શન</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fdReceiptsTbody">
+                    <!-- Populated dynamically via OverdraftApp.addFdReceiptRow() -->
+                  </tbody>
+                  <tfoot>
+                    <tr class="bg-blue-50 border-t-2 border-blue-300 font-black text-xs">
+                      <td colspan="4" class="p-3 text-right text-blue-950 text-sm">
+                        કુલ સરવાળો (TOTAL):
+                      </td>
+                      <td class="p-3 text-right text-blue-900 text-sm font-black" id="totalDepositAmount">
+                        ₹ 0.00
+                      </td>
+                      <td class="p-3 text-right text-emerald-800 text-sm font-black" id="totalFdLoanAmount">
+                        ₹ 0.00
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- Form Bottom Action Bar -->
+          <div class="bg-white p-4 rounded-2xl border-2 border-slate-300 shadow-lg flex flex-wrap items-center justify-between gap-3">
+            <div class="text-xs text-slate-700 font-bold flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-emerald-600 animate-pulse"></div>
+              <span>ધી જૂનાગઢ કોમર્શીયલ કો-ઓપરેટીવ બેંક લી. • ઓવરડ્રાફ્ટ લોન સિસ્ટમ</span>
+            </div>
+            
+            <div class="flex items-center gap-3">
+              <button type="button" onclick="OverdraftApp.resetForm()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl transition text-xs flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i> ફોર્મ રીસેટ (Reset)
+              </button>
+
+              <button type="submit" class="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl shadow transition flex items-center gap-2 text-sm border border-emerald-800 cursor-pointer">
+                <i data-lucide="save" class="w-4 h-4"></i> સેવ કરો (Save Record)
+              </button>
+
+              <button type="button" onclick="OverdraftApp.openPrintPreview()" class="px-7 py-2.5 bg-gradient-to-r from-blue-900 to-slate-900 hover:from-blue-800 hover:to-slate-800 text-white font-black rounded-xl shadow-xl hover:shadow-2xl transition flex items-center gap-2 text-sm border-2 border-amber-400 cursor-pointer">
+                <i data-lucide="printer" class="w-4 h-4 text-amber-400"></i> પ્રિન્ટ / PDF ડાઉનલોડ
+              </button>
+            </div>
+          </div>
+
+        </form>
+
+      </div>
+
+
+      <!-- ==================== TAB 2: OVERDRAFT LOAN REGISTER ==================== -->
+      <div id="registerView" style="display: none;" class="space-y-6">
+        
+        <div class="bg-white p-6 rounded-2xl border-2 border-slate-300 shadow-sm space-y-5">
+          
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-black shadow">
+                <i data-lucide="table-2" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h2 class="text-xl font-black text-slate-900">ઓવરડ્રાફ્ટ લોન ફોર્મ રજીસ્ટર (LOAN REGISTER)</h2>
+                <p class="text-xs text-slate-500 font-semibold">ધી જૂનાગઢ કોમર્શીયલ કો-ઓપરેટીવ બેંક લી. • રિયલ-ટાઇમ રેકોર્ડ્સ (Newest on Top)</p>
+              </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="OverdraftApp.resetForm(); OverdraftApp.switchTab('form');" class="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="plus-circle" class="w-4 h-4 text-amber-300"></i> + NEW FORM
+              </button>
+              <button onclick="OverdraftApp.exportXLSX()" class="px-3 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-amber-300"></i> Excel (.xlsx)
+              </button>
+              <button onclick="OverdraftApp.exportCSV()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-blue-200 text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-400"></i> CSV (.csv)
+              </button>
+              <label class="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-black rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="upload" class="w-3.5 h-3.5 text-slate-950"></i> Restore (.xlsx/.csv)
+                <input type="file" accept=".xlsx, .xls, .csv, .json" onchange="OverdraftApp.restoreBackupFile(event)" class="hidden">
+              </label>
+              <button onclick="OverdraftApp.printLoanRegisterReport()" class="px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer" title="રજીસ્ટર પ્રિન્ટ કરો">
+                <i data-lucide="printer" class="w-3.5 h-3.5 text-amber-300"></i> Print
+              </button>
+              <button onclick="OverdraftApp.clearAllRecords()" class="px-3 py-2 bg-red-800 hover:bg-red-700 text-red-100 text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-white"></i> Clear All
+              </button>
+            </div>
+          </div>
+
+          <!-- Register Search & Branch Filter Bar -->
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-300">
+            <div class="sm:col-span-7">
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input type="text" id="searchRegister" oninput="OverdraftApp.updateRegisterTable()" class="form-input pl-9 font-semibold text-xs" placeholder="ગ્રાહક નામ, કસ્ટમર ID, સેવિંગ ખાતા નંબર, અથવા રસીદ નંબર શોધો...">
+              </div>
+            </div>
+
+            <div class="sm:col-span-5">
+              <select id="filterBranch" onchange="OverdraftApp.updateRegisterTable()" class="form-select font-bold text-xs">
+                <!-- Populated dynamically via OverdraftApp.populateBranchDropdowns() -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Register Data Table -->
+          <div class="overflow-x-auto border-2 border-slate-300 rounded-xl shadow-sm">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-800 text-white text-xs font-bold uppercase tracking-wider">
+                  <th class="p-3 text-center w-12 border-r border-slate-700">#</th>
+                  <th class="p-3 border-r border-slate-700 min-w-[120px]">Record ID</th>
+                  <th class="p-3 border-r border-slate-700 min-w-[100px]">તારીખ</th>
+                  <th class="p-3 border-r border-slate-700 min-w-[220px]">ગ્રાહકની વિગત (Customer)</th>
+                  <th class="p-3 border-r border-slate-700 min-w-[160px]">શાખા (Branch)</th>
+                  <th class="p-3 border-r border-slate-700 text-right min-w-[140px]">લોનની રકમ રૂ.</th>
+                  <th class="p-3 border-r border-slate-700 text-center min-w-[100px]">FD રસીદો</th>
+                  <th class="p-3 text-center min-w-[160px]">એક્શન (Actions)</th>
+                </tr>
+              </thead>
+              <tbody id="registerTbody">
+                <!-- Populated dynamically via OverdraftApp.updateRegisterTable() -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- ==================== TAB 3: REPORTS & ANALYTICS MODULE ==================== -->
+      <div id="reportView" style="display: none;" class="space-y-6">
+        
+        <div class="bg-white p-6 rounded-2xl border-2 border-slate-300 shadow-sm space-y-6">
+          
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-900 text-amber-400 flex items-center justify-center font-black shadow">
+                <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h2 class="text-xl font-black text-slate-900">ઓવરડ્રાફ્ટ લોન રીપોર્ટ મોડ્યુલ (REPORTS & SUMMARY)</h2>
+                <p class="text-xs text-slate-500 font-semibold">ધી જૂનાગઢ કોમર્શીયલ કો-ઓપરેટીવ બેંક લી. • એકંદર ધિરાણ પૃથ્થકરણ</p>
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <button onclick="OverdraftApp.exportCSV()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export to CSV / Excel
+              </button>
+              <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="printer" class="w-4 h-4 text-amber-300"></i> Print Report
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary Statistic KPI Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <div class="p-4 bg-gradient-to-br from-blue-50 to-blue-100/60 rounded-xl border-2 border-blue-200">
+              <div class="text-[11px] font-bold text-blue-800 uppercase tracking-wider">કુલ લોન અરજીઓ (Total Loans)</div>
+              <div class="text-2xl font-black text-blue-950 mt-1" id="repTotalApps">0</div>
+              <div class="text-[10.5px] text-blue-700 mt-1">સક્રિય ઓવરડ્રાફ્ટ ખાતાઓ</div>
+            </div>
+
+            <div class="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100/60 rounded-xl border-2 border-emerald-200">
+              <div class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">કુલ મંજૂર ધિરાણ (Total Loan Amount)</div>
+              <div class="text-xl font-black text-emerald-950 mt-1" id="repTotalLoan">₹ 0.00</div>
+              <div class="text-[10.5px] text-emerald-700 mt-1">મંજૂર થયેલ કુલ ઓવરડ્રાફ્ટ રકમ</div>
+            </div>
+
+            <div class="p-4 bg-gradient-to-br from-amber-50 to-amber-100/60 rounded-xl border-2 border-amber-200">
+              <div class="text-[11px] font-bold text-amber-800 uppercase tracking-wider">કુલ તારણ એફડી (Total Pledged FD)</div>
+              <div class="text-xl font-black text-amber-950 mt-1" id="repTotalFd">₹ 0.00</div>
+              <div class="text-[10.5px] text-amber-700 mt-1">ગીરો મૂકેલ ડિપોઝિટની રકમ</div>
+            </div>
+
+            <div class="p-4 bg-gradient-to-br from-purple-50 to-purple-100/60 rounded-xl border-2 border-purple-200">
+              <div class="text-[11px] font-bold text-purple-800 uppercase tracking-wider">સરેરાશ વ્યાજદર (Average ROI)</div>
+              <div class="text-2xl font-black text-purple-950 mt-1" id="repAvgRoi">0.00 %</div>
+              <div class="text-[10.5px] text-purple-700 mt-1">વાર્ષિક વ્યાજદર સરેરાશ</div>
+            </div>
+
+          </div>
+
+          <!-- Branch Wise Breakdown Table -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center gap-2 font-black text-slate-800 text-sm">
+              <i data-lucide="building-2" class="w-4 h-4 text-blue-800"></i>
+              <span>શાખાવાર ઓવરડ્રાફ્ટ લોન વિશ્લેષણ (BRANCH-WISE LOAN DISTRIBUTION)</span>
+            </div>
+
+            <div class="overflow-x-auto border-2 border-slate-300 rounded-xl shadow-sm">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-800 text-white text-xs font-bold uppercase tracking-wider">
+                    <th class="p-2.5 text-center w-12 border-r border-slate-700">#</th>
+                    <th class="p-2.5 border-r border-slate-700 min-w-[200px]">શાખાનું નામ (Branch Name)</th>
+                    <th class="p-2.5 border-r border-slate-700 text-center min-w-[120px]">અરજી સંખ્યા</th>
+                    <th class="p-2.5 border-r border-slate-700 text-right min-w-[160px]">કુલ લોન રકમ રૂ.</th>
+                    <th class="p-2.5 text-right min-w-[160px]">કુલ તારણ FD રકમ રૂ.</th>
+                  </tr>
+                </thead>
+                <tbody id="repBranchTbody">
+                  <!-- Populated dynamically via OverdraftApp.updateReportMetrics() -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Standard Unified Footer -->
+    <footer class="w-full bg-[#020b33] text-center py-3.5 border-t border-slate-800 text-xs text-slate-400 no-print mt-auto">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div>
+          © 2026 <strong class="text-white">The Junagadh Commercial Co-Operative Bank Ltd.</strong> • All Rights Reserved
+        </div>
+        <div class="flex items-center gap-2 text-slate-300">
+          <i class="fa-solid fa-crown text-[#FDBE34]"></i> Designed by <strong class="text-[#FDBE34]">Rahul Popat</strong>
+          <span class="text-slate-600">|</span>
+          <a href="tel:+919898180810" class="hover:text-amber-300 text-slate-300 transition flex items-center gap-1 font-semibold">
+            <i class="fa-solid fa-phone text-xs text-amber-400"></i> +91 9898180810
+          </a>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+
+  <!-- ==================== PRINT PREVIEW MODAL (CLEAN WHITE FULL SCREEN) ==================== -->
+  <div id="printPreviewModal" class="no-print fixed inset-0 bg-white z-50 flex flex-col overflow-hidden" style="display: none;">
+    <!-- Clean Crisp Light Action Bar -->
+    <div class="no-print bg-white text-slate-800 px-4 sm:px-8 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-sm">
+      <div class="flex items-center gap-2.5">
+        <i data-lucide="printer" class="w-5 h-5 text-blue-700"></i>
+        <span class="font-bold text-slate-900 text-sm sm:text-base">ઓવરડ્રાફ્ટ લોન દસ્તાવેજો (પ્રિન્ટ પ્રિવ્યૂ)</span>
+      </div>
+
+      <!-- Document Switcher Filter -->
+      <div class="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold">
+        <button type="button" onclick="OverdraftApp.setPrintDocumentType('all')" data-type="all" class="doc-switch-btn px-3 py-1.5 rounded-md transition bg-blue-700 text-white font-bold shadow-sm">
+          તમામ ૫ પેઇજ (All 5)
+        </button>
+        <button type="button" onclick="OverdraftApp.setPrintDocumentType('dp_note')" data-type="dp_note" class="doc-switch-btn px-3 py-1.5 rounded-md transition text-slate-700 hover:bg-slate-200">
+          ૧. ડીમાન્ડ નોટ
+        </button>
+        <button type="button" onclick="OverdraftApp.setPrintDocumentType('fd_app')" data-type="fd_app" class="doc-switch-btn px-3 py-1.5 rounded-md transition text-slate-700 hover:bg-slate-200">
+          ૨. અરજી ફોર્મ
+        </button>
+        <button type="button" onclick="OverdraftApp.setPrintDocumentType('lien_1')" data-type="lien_1" class="doc-switch-btn px-3 py-1.5 rounded-md transition text-slate-700 hover:bg-slate-200">
+          ૩. લીઅન પત્ર-૧
+        </button>
+        <button type="button" onclick="OverdraftApp.setPrintDocumentType('lien_2')" data-type="lien_2" class="doc-switch-btn px-3 py-1.5 rounded-md transition text-slate-700 hover:bg-slate-200">
+          ૪. લીઅન પત્ર-૨
+        </button>
+        <button type="button" onclick="OverdraftApp.setPrintDocumentType('lien_3')" data-type="lien_3" class="doc-switch-btn px-3 py-1.5 rounded-md transition text-slate-700 hover:bg-slate-200">
+          ૫. લીઅન પત્ર-૩
+        </button>
+      </div>
+
+      <!-- Print & Close Buttons -->
+      <div class="flex items-center gap-2.5">
+        <button type="button" onclick="OverdraftApp.executePrint()" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs sm:text-sm rounded-lg shadow flex items-center gap-2 cursor-pointer transition">
+          <i data-lucide="printer" class="w-4 h-4"></i> પ્રિન્ટ / PDF ડાઉનલોડ
+        </button>
+        <button type="button" onclick="OverdraftApp.closePrintPreview()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-lg border border-slate-300 cursor-pointer transition">
+          ✕ બંધ કરો
+        </button>
+      </div>
+    </div>
+
+    <!-- 100% Clear White Scrollable Body -->
+    <div class="flex-1 bg-white overflow-y-auto overflow-x-auto p-4 sm:p-8 flex flex-col items-center">
+      <!-- Container for previewed pages -->
+      <div id="modalPrintCanvas" class="w-full max-w-[210mm] flex flex-col items-center space-y-10 bg-white">
+        <!-- All pages mirrored here for screen preview -->
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== OFFICIAL PRINTABLE CONTAINER (EXACT FD FORM MODULE ENGINE) ==================== -->
+  <div id="printDocumentContainer" class="print-only print-container">
+    
+    <!-- PAGE 1: ડીમાન્ડ પ્રોમીસરી નોટ (DEMAND PROMISSORY NOTE) -->
+    <div id="printDpNotePage" class="print-page dp-print-page">
+      <!-- Injected dynamically via OverdraftApp.populatePromissoryNote() -->
+    </div>
+
+    <!-- PAGE 2: બાંધી મુદત થાપણ સામે લોન/ઓવરડ્રાફ્ટ માટેનું અરજી ફોર્મ -->
+    <div id="printFdLoanAppPage" class="print-page">
+      <!-- Injected dynamically via OverdraftApp.populateFdLoanAppDoc() -->
+    </div>
+
+    <!-- PAGE 3: સંમિશ્ર ગ્રહણાધિકાર પત્ર / COMPOSITE LETTER OF LIEN (PAGE 1) -->
+    <div id="printLienPage1" class="print-page">
+      <!-- Injected dynamically via OverdraftApp.populateLienPage1() -->
+    </div>
+
+    <!-- PAGE 4: સંમિશ્ર ગ્રહણાધિકાર પત્ર / COMPOSITE LETTER OF LIEN (PAGE 2 - CLAUSES 3 TO 8) -->
+    <div id="printLienPage2" class="print-page">
+      <!-- Injected dynamically via OverdraftApp.populateLienPage2() -->
+    </div>
+
+    <!-- PAGE 5: સંમિશ્ર ગ્રહણાધિકાર પત્ર / COMPOSITE LETTER OF LIEN (PAGE 3 - CLAUSE 9 + SCHEDULE TABLE + OFFICE USE) -->
+    <div id="printLienPage3" class="print-page">
+      <!-- Injected dynamically via OverdraftApp.populateLienPage3() -->
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <!-- Supabase & PostgreSQL Sync Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../postgres-sync.js"></script>
+  <script src="bank_emblem.js?v=2.5"></script>
+  <script src="app_new.js?v=2.5"></script>
+  <script>
+    // Initialize Lucide icons on load
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

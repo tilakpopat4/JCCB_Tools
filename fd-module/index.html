@@ -1,0 +1,2137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Junagadh Commercial Co-Operative Bank Ltd. - FD Account Opening Module</title>
+  <!-- Tailwind CSS CDN for modern UI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SheetJS CDN (XLSX) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    if (typeof XLSX === "undefined") {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');
+    }
+  </script>
+  <!-- Central Backup Engine -->
+  <script src="../central-backup.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-900 flex flex-col">
+
+  <!-- ==================== ON-SCREEN APPLICATION VIEW (NO-PRINT) ==================== -->
+  <div class="no-print flex-1 flex flex-col">
+    
+    <!-- Top Bank Header Bar -->
+    <header class="bg-gradient-to-r from-[#041562] via-[#082080] to-[#020b33] text-white shadow-xl sticky top-0 z-40 border-b-4 border-[#FDBE34]">
+      <div class="max-w-full px-4 sm:px-6 py-2.5 flex flex-wrap justify-between items-center gap-3">
+        
+        <div class="flex items-center space-x-3">
+          <!-- Bank Official Emblem / Logo -->
+          <div class="w-11 h-11 rounded-full bg-white p-0.5 shadow-xl border-2 border-[#FDBE34] shrink-0 flex items-center justify-center overflow-hidden">
+            <img src="../jccb-logo.png" alt="JCCB Logo" class="w-full h-full object-contain" onerror="this.onerror=null; this.src='assets/jccb_emblem.png';">
+          </div>
+          <div>
+            <h1 class="text-base sm:text-lg font-black tracking-tight text-white uppercase flex items-center gap-2">
+              THE JUNAGADH COMMERCIAL CO-OPERATIVE BANK LTD.
+            </h1>
+            <p class="text-[11px] sm:text-xs text-[#FDBE34] font-bold font-['Noto_Sans_Gujarati']">
+              ધી જૂનાગઢ કોમર્શિયલ કો-ઓપરેટીવ બેંક લી. • FIXED DEPOSIT (FD) PORTAL
+            </p>
+          </div>
+        </div>
+
+        <!-- Session Status & Quick Actions -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Branch & Role Indicator -->
+          <div class="hidden sm:flex items-center gap-2 bg-white/10 border border-[#FDBE34]/40 px-3 py-1.5 rounded-xl">
+            <i class="fa-solid fa-building-columns text-[#FDBE34] text-xs"></i>
+            <span id="user-branch-text" class="text-xs font-bold text-white">99 HEAD OFFICE</span>
+            <span id="user-role-badge" class="px-2 py-0.5 bg-[#FDBE34]/20 text-[#FDBE34] border border-[#FDBE34]/50 rounded-full text-[10px] font-black">
+              👑 Super Admin
+            </span>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <button type="button" onclick="FDApp.resetForm()" class="px-3 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-xs font-bold rounded-lg border border-slate-700 transition flex items-center gap-1.5 text-white shadow cursor-pointer">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-[#FDBE34]"></i> New Form
+          </button>
+          <button type="button" onclick="FDApp.saveToLocalStorage()" class="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-xs font-bold rounded-lg shadow transition flex items-center gap-1.5 text-white cursor-pointer">
+            <i data-lucide="save" class="w-3.5 h-3.5 text-emerald-200"></i> Save
+          </button>
+          <button type="button" onclick="FDApp.printForm()" class="px-3.5 py-1.5 bg-[#FDBE34] hover:bg-[#e6a824] text-[#041562] text-xs font-black rounded-lg shadow transition flex items-center gap-1.5 border border-[#FDBE34] cursor-pointer">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i> Print
+          </button>
+
+          <!-- Return to Launcher Hub -->
+          <a href="../merger.html" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold rounded-lg border border-slate-600 transition flex items-center gap-1.5 shadow cursor-pointer">
+            <i class="fa-solid fa-cubes text-[#FDBE34]"></i> All Portals
+          </a>
+
+          <!-- Logout Button -->
+          <button type="button" onclick="handleLogout()" class="px-3 py-1.5 bg-red-950/90 hover:bg-red-900 text-red-200 border border-red-500/50 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace with Left Sidebar & Content Area -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+      
+      <!-- ==================== LEFT SIDEBAR NAVIGATION PANEL ==================== -->
+      <aside class="w-full md:w-72 bg-slate-900 text-slate-200 p-4 border-r-2 border-slate-700 flex flex-col justify-between shrink-0 space-y-6">
+        
+        <div class="space-y-4">
+          <!-- Navigation Title -->
+          <div class="pb-2.5 border-b border-slate-700">
+            <span class="text-[10px] font-black uppercase text-amber-400 tracking-wider">BANK CONTROL PANEL</span>
+            <div class="text-sm font-black text-white">મોડ્યુલ મેનુ</div>
+          </div>
+
+          <!-- Main Navigation Links -->
+          <nav class="space-y-2">
+            
+            <!-- 1. FD Entry Form -->
+            <button type="button" onclick="FDApp.switchView('form')" data-view="form" class="sidebar-nav-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold flex items-center gap-3 transition border border-transparent bg-blue-900 text-amber-300 border-amber-400 font-black shadow">
+              <i data-lucide="file-edit" class="w-4 h-4"></i>
+              <span>FD Entry Form (નવું ફોર્મ)</span>
+            </button>
+
+            <!-- 2. FD Entry Form Register (With New Entries on Top, Edit, Delete, Print) -->
+            <button type="button" onclick="FDApp.switchView('register')" data-view="register" class="sidebar-nav-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold flex items-center justify-between transition border border-transparent text-slate-300 hover:bg-slate-800">
+              <div class="flex items-center gap-3">
+                <i data-lucide="table-2" class="w-4 h-4 text-emerald-400"></i>
+                <span>FD Entry Register (રજીસ્ટર)</span>
+              </div>
+              <span id="registerCountBadge" class="bg-amber-400 text-blue-950 px-2 py-0.5 rounded-full font-black text-[10px]">0</span>
+            </button>
+
+            <!-- 3. ROI Master & Rules -->
+            <button type="button" onclick="FDApp.switchView('rateMaster')" data-view="rateMaster" class="sidebar-nav-btn w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold flex items-center gap-3 transition border border-transparent text-slate-300 hover:bg-slate-800">
+              <i data-lucide="percent" class="w-4 h-4 text-amber-400"></i>
+              <span>ROI Master & Rules (વ્યાજ દર)</span>
+            </button>
+
+          </nav>
+
+          <!-- Quick Backup Utilities Box -->
+          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2.5">
+            <div class="text-[11px] font-bold text-amber-300 flex items-center justify-between border-b border-slate-800 pb-1.5">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-blue-400"></i> Data Backup & Restore
+              </span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button onclick="FDApp.exportXLSX()" class="py-1 px-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded text-[10px] font-bold border border-slate-700 flex items-center justify-center gap-1">
+                <i data-lucide="file-spreadsheet" class="w-3 h-3 text-emerald-400"></i> .xlsx (Excel)
+              </button>
+              <button onclick="FDApp.exportCSV()" class="py-1 px-1.5 bg-slate-800 hover:bg-slate-700 text-blue-300 rounded text-[10px] font-bold border border-slate-700 flex items-center justify-center gap-1">
+                <i data-lucide="file-text" class="w-3 h-3 text-blue-400"></i> .csv (Data)
+              </button>
+            </div>
+            <label class="w-full py-1.5 px-2 bg-blue-900/60 hover:bg-blue-800 text-amber-200 rounded text-[11px] font-black border border-blue-600/50 flex items-center justify-center gap-1.5 cursor-pointer shadow">
+              <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-300"></i> Restore (.xlsx / .csv)
+              <input type="file" accept=".xlsx, .xls, .csv, .json" onchange="FDApp.restoreBackupFile(event)" class="hidden">
+            </label>
+          </div>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="pt-3 border-t border-slate-800 text-[10px] text-slate-400 space-y-1">
+          <div class="font-bold text-amber-300">The Junagadh Commercial Co-Op Bank</div>
+          <div class="text-slate-500">English Only • Auto Maturity Active</div>
+        </div>
+
+      </aside>
+
+      <!-- ==================== MAIN CONTENT VIEW AREA ==================== -->
+      <main class="flex-1 p-4 sm:p-6 overflow-y-auto max-w-full">
+
+        <!-- ==================== VIEW 1: FD MAIN ENTRY FORM ==================== -->
+        <div id="formView" class="space-y-6">
+          
+          <!-- Top Meta Card -->
+          <div class="bg-white p-4 rounded-2xl border-2 border-slate-300 shadow-sm flex flex-wrap md:flex-nowrap gap-4 items-center justify-between">
+            <div class="flex-1 min-w-[260px]">
+              <label class="input-label" for="branchName">Branch Name / શાખાનું નામ <span class="req">*</span></label>
+              <select id="branchName" class="form-select text-blue-950 font-bold border-2 border-blue-400 bg-blue-50/40">
+                <option value="AZADCHOWK BRANCH (CBB)" selected>1 - AZADCHOWK BRANCH [CBB]</option>
+                <option value="JOSHIPARA BRANCH (JPB)">2 - JOSHIPARA BRANCH [JPB]</option>
+                <option value="DOLATPARA BRANCH (DBP)">3 - DOLATPARA BRANCH [DBP]</option>
+                <option value="KODINAR BRANCH (KDR)">4 - KODINAR BRANCH [KDR]</option>
+                <option value="KESHOD BRANCH (KSD)">5 - KESHOD BRANCH [KSD]</option>
+                <option value="VANTHALI BRANCH (VTL)">6 - VANTHALI BRANCH [VTL]</option>
+                <option value="MANAVADAR BRANCH (MNV)">7 - MANAVADAR BRANCH [MNV]</option>
+                <option value="GANDHINAGAR BRANCH (GNB)">8 - GANDHINAGAR BRANCH [GNB]</option>
+                <option value="LIMBDI BRANCH (LIM)">9 - LIMBDI BRANCH [LIM]</option>
+                <option value="MENDARDA BRANCH (MEN)">10 - MENDARDA BRANCH [MEN]</option>
+                <option value="VISAVADAR BRANCH (VIS)">11 - VISAVADAR BRANCH [VIS]</option>
+                <option value="JAMNAGAR BRANCH (JMB)">12 - JAMNAGAR BRANCH [JMB]</option>
+                <option value="BUS STAND BRANCH (STB)">13 - BUS STAND BRANCH [STB]</option>
+                <option value="LATHI BRANCH (LTH)">14 - LATHI BRANCH [LTH]</option>
+                <option value="AHMEDABAD BRANCH (AHM)">16 - AHMEDABAD BRANCH [AHM]</option>
+                <option value="RAJKOT BRANCH (RJT)">17 - RAJKOT BRANCH [RJT]</option>
+                <option value="HEAD OFFICE (HO)">99 - HEAD OFFICE [HO]</option>
+              </select>
+            </div>
+            <div class="w-full md:w-52">
+              <label class="input-label" for="formDate">Date / તારીખ <span class="req">*</span></label>
+              <input type="date" id="formDate" class="form-input font-bold">
+            </div>
+            <div class="w-full md:w-52">
+              <label class="input-label" for="formRefNo">Form Ref / Token No</label>
+              <input type="text" id="formRefNo" class="form-input font-mono font-bold" placeholder="AUTO / REF NO" value="FD-2026-001">
+            </div>
+          </div>
+
+          <!-- MAIN FORM WRAPPER -->
+          <form id="fdMainForm" onsubmit="event.preventDefault();" class="space-y-6">
+
+            <!-- ==================== SECTION 1: APPLICANT DETAILS (ALL 3 IN PARALLEL) ==================== -->
+            <div class="form-card">
+              <div class="section-header">
+                <div class="flex items-center gap-2.5 font-bold text-base sm:text-lg">
+                  <span class="w-7 h-7 rounded-lg bg-amber-400 text-blue-950 font-black flex items-center justify-center text-sm shadow">1</span>
+                  SECTION 1: APPLICANT PARTICULARS (અરજદારની વિગતો - ALL 3 APPLICANTS)
+                </div>
+                <div class="text-xs font-bold text-amber-200 hidden md:block">
+                  (FIRST APPLICANT, JOINT 1 & JOINT 2)
+                </div>
+              </div>
+
+              <div class="p-5 space-y-5">
+                
+                <!-- Account Type & Mode of Operation Bar -->
+                <div class="p-4 bg-blue-50 rounded-xl border-2 border-blue-300 shadow-sm flex flex-wrap gap-4 items-center justify-between">
+                  <div class="w-full sm:w-80">
+                    <label class="input-label text-blue-950" for="typeOfAccount">
+                      Type of Account / ખાતાનો પ્રકાર <span class="req">*</span>
+                    </label>
+                    <select id="typeOfAccount" class="form-select font-bold text-blue-950 bg-white border-2 border-blue-400">
+                      <option value="Single" selected>Single (વ્યક્તિગત ખાતું - ૧ અરજદાર)</option>
+                      <option value="Joint">Joint (સંયુક્ત ખાતું - જોઈન્ટ ૧ & ૨)</option>
+                    </select>
+                  </div>
+
+                  <div class="w-full sm:w-80">
+                    <label class="input-label text-blue-950" for="modeOfOperation">
+                      Mode of Operation / સંચાલન પદ્ધતિ <span class="req">*</span>
+                    </label>
+                    <select id="modeOfOperation" class="form-select font-bold text-blue-950 bg-white border-2 border-blue-400">
+                      <option value="Either or Survivor">Either or Survivor (ગમે તે એક અથવા બચી જનાર)</option>
+                      <option value="Jointly">Jointly (સંયુક્ત રીતે)</option>
+                      <option value="Former or Survivor">Former or Survivor</option>
+                      <option value="Any One or Survivor">Any One or Survivor</option>
+                      <option value="Other">Other (અન્ય વિગત)</option>
+                    </select>
+                  </div>
+
+                  <div id="modeOfOpOtherDiv" style="display: none;" class="w-full sm:w-72">
+                    <label class="input-label text-blue-950" for="modeOfOperationOther">Specify Other Mode <span class="req">*</span></label>
+                    <input type="text" id="modeOfOperationOther" class="form-input bg-white border-2 border-blue-400 font-semibold" placeholder="ENTER OPERATION MODE">
+                  </div>
+                </div>
+
+                <!-- ALL 3 APPLICANTS DISPLAYED (DYNAMIC GRID: 1 COL FOR SINGLE, 3 COLS FOR JOINT) -->
+                <div id="applicantsContainer" class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  
+                  <!-- 1. FIRST APPLICANT (MAIN) -->
+                  <div class="applicant-col-card first-card bg-white p-4 space-y-3.5">
+                    <div class="applicant-col-header bg-blue-900 text-white rounded-lg -mx-1 -mt-1 mb-2 px-3 py-2 flex items-center justify-between shadow">
+                      <span class="flex items-center gap-1.5 text-sm font-bold text-white">
+                        <i data-lucide="user-check" class="w-4 h-4 text-amber-300"></i> First Applicant (મુખ્ય અરજદાર)
+                      </span>
+                      <span class="text-[11px] bg-amber-400 text-blue-950 px-2 py-0.5 rounded font-black uppercase">Primary</span>
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="firstCustomerId">Customer ID / ગ્રાહક ID <span class="req">*</span></label>
+                      <input type="text" id="firstCustomerId" class="form-input font-mono font-bold text-blue-950" placeholder="E.G. 1002345">
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="firstFullName">Full Name As per ID / પૂરું નામ <span class="req">*</span></label>
+                      <input type="text" id="firstFullName" class="form-input uppercase font-bold text-slate-900" placeholder="SURNAME FIRSTNAME FATHER/HUSBAND NAME">
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="firstAddress">Residential Address / રહેઠાણનું સરનામું <span class="req">*</span></label>
+                      <textarea id="firstAddress" rows="2" class="form-textarea font-semibold text-slate-900 uppercase" placeholder="HOUSE/FLAT NO, SOCIETY, AREA, CITY, PIN"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="firstPanNo">PAN Number</label>
+                        <input type="text" id="firstPanNo" class="form-input uppercase font-mono font-bold" maxlength="10" placeholder="ABCDE1234F">
+                      </div>
+                      <div>
+                        <label class="input-label" for="firstAadharNo">Aadhaar Number (12 Digits) <span class="req">*</span></label>
+                        <input type="text" id="firstAadharNo" class="form-input font-mono font-bold" maxlength="12" pattern="[0-9]{12}" placeholder="12 DIGIT AADHAAR NO" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 12)">
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="firstMobileNo">Mobile / મોબાઈલ <span class="req">*</span></label>
+                        <input type="tel" id="firstMobileNo" class="form-input font-mono font-bold" maxlength="10" placeholder="9876543210">
+                      </div>
+                      <div>
+                        <label class="input-label" for="firstEmailId">Email ID</label>
+                        <input type="email" id="firstEmailId" class="form-input font-semibold uppercase" placeholder="NAME@DOMAIN.COM">
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="firstDob">Date of Birth <span class="req">*</span></label>
+                        <input type="date" id="firstDob" class="form-input font-bold">
+                      </div>
+                      <div>
+                        <label class="input-label" for="firstGender">Gender / જાતિ <span class="req">*</span></label>
+                        <select id="firstGender" class="form-select font-bold">
+                          <option value="Male">MALE (પુરુષ)</option>
+                          <option value="Female">FEMALE (સ્ત્રી)</option>
+                          <option value="Other">OTHER (અન્ય)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="firstRelation">Relation with Bank</label>
+                      <select id="firstRelation" class="form-select font-bold">
+                        <option value="Self">SELF (પોતે)</option>
+                        <option value="Spouse">SPOUSE (પતિ / પત્ની)</option>
+                        <option value="Father">FATHER (પિતા)</option>
+                        <option value="Mother">MOTHER (માતા)</option>
+                        <option value="Son">SON (પુત્ર)</option>
+                        <option value="Daughter">DAUGHTER (પુત્રી)</option>
+                        <option value="Sister">SISTER (બહેન)</option>
+                        <option value="Brother">BROTHER (ભાઈ)</option>
+                        <option value="Friend">FRIEND (મિત્ર)</option>
+                        <option value="Father In Law">FATHER IN LAW</option>
+                        <option value="Mother In Law">MOTHER IN LAW</option>
+                        <option value="Grand Father">GRAND FATHER</option>
+                        <option value="Grand Mother">GRAND MOTHER</option>
+                        <option value="Grand Son">GRAND SON</option>
+                        <option value="Grand Daughter">GRAND DAUGHTER</option>
+                        <option value="Relatives">RELATIVES (સગા)</option>
+                      </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="firstAnnualIncome">Annual Income</label>
+                        <select id="firstAnnualIncome" class="form-select font-bold">
+                          <option value="Up to 2.5 Lacs">UP TO 2.5 LACS</option>
+                          <option value="2.5 to 5 Lacs">2.5 TO 5 LACS</option>
+                          <option value="5 to 10 Lacs">5 TO 10 LACS</option>
+                          <option value="Above 10 Lacs">ABOVE 10 LACS</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="input-label" for="firstOccupation">Occupation <span class="req">*</span></label>
+                        <select id="firstOccupation" class="form-select font-bold" onchange="FDApp.toggleOccupationOther('first', this)">
+                          <option value="Service">SERVICE (નોકરી)</option>
+                          <option value="Business">BUSINESS (વેપાર)</option>
+                          <option value="Self Employed">SELF EMPLOYED</option>
+                          <option value="Retired">RETIRED (નિવૃત્ત)</option>
+                          <option value="Student">STUDENT (વિદ્યાર્થી)</option>
+                          <option value="Housewife">HOUSEWIFE</option>
+                          <option value="Other">OTHER (અન્ય)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div id="firstOccupationOtherDiv" style="display:none;">
+                      <label class="input-label" for="firstOccupationOther">Specify Occupation</label>
+                      <input type="text" id="firstOccupationOther" class="form-input font-semibold" placeholder="ENTER OCCUPATION">
+                    </div>
+
+                  </div>
+
+
+                  <!-- 2. JOINT APPLICANT 1 (WITH SAME AS FIRST APPLICANT ADDRESS CHECKBOX) -->
+                  <div id="applicantCard_joint1" class="applicant-col-card joint1-card bg-white p-4 space-y-3.5">
+                    <div class="applicant-col-header bg-sky-900 text-white rounded-lg -mx-1 -mt-1 mb-2 px-3 py-2 flex items-center justify-between shadow">
+                      <span class="flex items-center gap-1.5 text-sm font-bold text-white">
+                        <i data-lucide="users" class="w-4 h-4 text-sky-300"></i> Joint Applicant 1 (જોઈન્ટ ૧)
+                      </span>
+                      <span class="text-[11px] bg-sky-300 text-sky-950 px-2 py-0.5 rounded font-black uppercase">Joint 1</span>
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="joint1CustomerId">Joint 1 Customer ID</label>
+                      <input type="text" id="joint1CustomerId" class="form-input font-mono font-bold text-sky-950" placeholder="E.G. 1002346">
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="joint1FullName">Joint 1 Full Name As per ID</label>
+                      <input type="text" id="joint1FullName" class="form-input uppercase font-bold text-slate-900" placeholder="SURNAME FIRSTNAME FATHER/HUSBAND">
+                    </div>
+
+                    <div>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="input-label mb-0" for="joint1Address">Joint 1 Address</label>
+                        <label class="flex items-center gap-1 text-[11px] font-bold text-blue-900 bg-blue-100 hover:bg-blue-200 px-2 py-0.5 rounded border border-blue-300 cursor-pointer">
+                          <input type="checkbox" id="joint1SameAsFirstAddr" onchange="FDApp.syncAddress('joint1Address', this)" class="w-3.5 h-3.5 rounded text-blue-700">
+                          <span>As per First Applicant</span>
+                        </label>
+                      </div>
+                      <textarea id="joint1Address" rows="2" class="form-textarea font-semibold text-slate-900 uppercase" placeholder="HOUSE/FLAT NO, SOCIETY, CITY"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="joint1PanNo">Joint 1 PAN</label>
+                        <input type="text" id="joint1PanNo" class="form-input uppercase font-mono font-bold" maxlength="10" placeholder="ABCDE1234F">
+                      </div>
+                      <div>
+                        <label class="input-label" for="joint1AadharNo">Joint 1 Aadhaar</label>
+                        <input type="text" id="joint1AadharNo" class="form-input font-mono font-bold" maxlength="12" pattern="[0-9]{12}" placeholder="12 DIGIT AADHAAR" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 12)">
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="joint1MobileNo">Joint 1 Mobile</label>
+                        <input type="tel" id="joint1MobileNo" class="form-input font-mono font-bold" maxlength="10" placeholder="9876543210">
+                      </div>
+                      <div>
+                        <label class="input-label" for="joint1EmailId">Joint 1 Email</label>
+                        <input type="email" id="joint1EmailId" class="form-input font-semibold uppercase" placeholder="JOINT1@DOMAIN.COM">
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="joint1Dob">Date of Birth</label>
+                        <input type="date" id="joint1Dob" class="form-input font-bold">
+                      </div>
+                      <div>
+                        <label class="input-label" for="joint1Gender">Gender</label>
+                        <select id="joint1Gender" class="form-select font-bold">
+                          <option value="" selected>-- SELECT GENDER --</option>
+                          <option value="Male">MALE</option>
+                          <option value="Female">FEMALE</option>
+                          <option value="Other">OTHER</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="joint1Relation">Relation with First Applicant</label>
+                      <select id="joint1Relation" class="form-select font-bold">
+                        <option value="" selected>-- SELECT RELATION --</option>
+                        <option value="Spouse">SPOUSE (પતિ / પત્ની)</option>
+                        <option value="Father">FATHER (પિતા)</option>
+                        <option value="Mother">MOTHER (માતા)</option>
+                        <option value="Son">SON (પુત્ર)</option>
+                        <option value="Daughter">DAUGHTER (પુત્રી)</option>
+                        <option value="Sister">SISTER (બહેન)</option>
+                        <option value="Brother">BROTHER (ભાઈ)</option>
+                        <option value="Friend">FRIEND (મિત્ર)</option>
+                        <option value="Father In Law">FATHER IN LAW</option>
+                        <option value="Mother In Law">MOTHER IN LAW</option>
+                        <option value="Grand Father">GRAND FATHER</option>
+                        <option value="Grand Mother">GRAND MOTHER</option>
+                        <option value="Grand Son">GRAND SON</option>
+                        <option value="Grand Daughter">GRAND DAUGHTER</option>
+                        <option value="Relatives">RELATIVES (સગા)</option>
+                      </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="joint1AnnualIncome">Annual Income</label>
+                        <select id="joint1AnnualIncome" class="form-select font-bold">
+                          <option value="" selected>-- SELECT INCOME --</option>
+                          <option value="Up to 2.5 Lacs">UP TO 2.5 LACS</option>
+                          <option value="2.5 to 5 Lacs">2.5 TO 5 LACS</option>
+                          <option value="5 to 10 Lacs">5 TO 10 LACS</option>
+                          <option value="Above 10 Lacs">ABOVE 10 LACS</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="input-label" for="joint1Occupation">Occupation</label>
+                        <select id="joint1Occupation" class="form-select font-bold" onchange="FDApp.toggleOccupationOther('joint1', this)">
+                          <option value="" selected>-- SELECT OCCUPATION --</option>
+                          <option value="Service">SERVICE</option>
+                          <option value="Business">BUSINESS</option>
+                          <option value="Self Employed">SELF EMPLOYED</option>
+                          <option value="Retired">RETIRED</option>
+                          <option value="Student">STUDENT</option>
+                          <option value="Housewife">HOUSEWIFE</option>
+                          <option value="Other">OTHER</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div id="joint1OccupationOtherDiv" style="display:none;">
+                      <label class="input-label" for="joint1OccupationOther">Specify Occupation</label>
+                      <input type="text" id="joint1OccupationOther" class="form-input font-semibold" placeholder="ENTER OCCUPATION">
+                    </div>
+
+                  </div>
+
+
+                  <!-- 3. JOINT APPLICANT 2 (WITH SAME AS FIRST APPLICANT ADDRESS CHECKBOX) -->
+                  <div id="applicantCard_joint2" class="applicant-col-card joint2-card bg-white p-4 space-y-3.5">
+                    <div class="applicant-col-header bg-teal-900 text-white rounded-lg -mx-1 -mt-1 mb-2 px-3 py-2 flex items-center justify-between shadow">
+                      <span class="flex items-center gap-1.5 text-sm font-bold text-white">
+                        <i data-lucide="users" class="w-4 h-4 text-teal-300"></i> Joint Applicant 2 (જોઈન્ટ ૨)
+                      </span>
+                      <span class="text-[11px] bg-teal-300 text-teal-950 px-2 py-0.5 rounded font-black uppercase">Joint 2</span>
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="joint2CustomerId">Joint 2 Customer ID</label>
+                      <input type="text" id="joint2CustomerId" class="form-input font-mono font-bold text-teal-950" placeholder="E.G. 1002347">
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="joint2FullName">Joint 2 Full Name As per ID</label>
+                      <input type="text" id="joint2FullName" class="form-input uppercase font-bold text-slate-900" placeholder="SURNAME FIRSTNAME FATHER/HUSBAND">
+                    </div>
+
+                    <div>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="input-label mb-0" for="joint2Address">Joint 2 Address</label>
+                        <label class="flex items-center gap-1 text-[11px] font-bold text-teal-900 bg-teal-100 hover:bg-teal-200 px-2 py-0.5 rounded border border-teal-300 cursor-pointer">
+                          <input type="checkbox" id="joint2SameAsFirstAddr" onchange="FDApp.syncAddress('joint2Address', this)" class="w-3.5 h-3.5 rounded text-teal-700">
+                          <span>As per First Applicant</span>
+                        </label>
+                      </div>
+                      <textarea id="joint2Address" rows="2" class="form-textarea font-semibold text-slate-900 uppercase" placeholder="HOUSE/FLAT NO, SOCIETY, CITY"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="joint2PanNo">Joint 2 PAN</label>
+                        <input type="text" id="joint2PanNo" class="form-input uppercase font-mono font-bold" maxlength="10" placeholder="ABCDE1234F">
+                      </div>
+                      <div>
+                        <label class="input-label" for="joint2AadharNo">Joint 2 Aadhaar</label>
+                        <input type="text" id="joint2AadharNo" class="form-input font-mono font-bold" maxlength="12" pattern="[0-9]{12}" placeholder="12 DIGIT AADHAAR" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 12)">
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="joint2MobileNo">Joint 2 Mobile</label>
+                        <input type="tel" id="joint2MobileNo" class="form-input font-mono font-bold" maxlength="10" placeholder="9876543210">
+                      </div>
+                      <div>
+                        <label class="input-label" for="joint2EmailId">Joint 2 Email</label>
+                        <input type="email" id="joint2EmailId" class="form-input font-semibold uppercase" placeholder="JOINT2@DOMAIN.COM">
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="joint2Dob">Date of Birth</label>
+                        <input type="date" id="joint2Dob" class="form-input font-bold">
+                      </div>
+                      <div>
+                        <label class="input-label" for="joint2Gender">Gender</label>
+                        <select id="joint2Gender" class="form-select font-bold">
+                          <option value="" selected>-- SELECT GENDER --</option>
+                          <option value="Male">MALE</option>
+                          <option value="Female">FEMALE</option>
+                          <option value="Other">OTHER</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="input-label" for="joint2Relation">Relation with First Applicant</label>
+                      <select id="joint2Relation" class="form-select font-bold">
+                        <option value="" selected>-- SELECT RELATION --</option>
+                        <option value="Spouse">SPOUSE (પતિ / પત્ની)</option>
+                        <option value="Father">FATHER (પિતા)</option>
+                        <option value="Mother">MOTHER (માતા)</option>
+                        <option value="Son">SON (પુત્ર)</option>
+                        <option value="Daughter">DAUGHTER (પુત્રી)</option>
+                        <option value="Sister">SISTER (બહેન)</option>
+                        <option value="Brother">BROTHER (ભાઈ)</option>
+                        <option value="Friend">FRIEND (મિત્ર)</option>
+                        <option value="Father In Law">FATHER IN LAW</option>
+                        <option value="Mother In Law">MOTHER IN LAW</option>
+                        <option value="Grand Father">GRAND FATHER</option>
+                        <option value="Grand Mother">GRAND MOTHER</option>
+                        <option value="Grand Son">GRAND SON</option>
+                        <option value="Grand Daughter">GRAND DAUGHTER</option>
+                        <option value="Relatives">RELATIVES (સગા)</option>
+                      </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                      <div>
+                        <label class="input-label" for="joint2AnnualIncome">Annual Income</label>
+                        <select id="joint2AnnualIncome" class="form-select font-bold">
+                          <option value="" selected>-- SELECT INCOME --</option>
+                          <option value="Up to 2.5 Lacs">UP TO 2.5 LACS</option>
+                          <option value="2.5 to 5 Lacs">2.5 TO 5 LACS</option>
+                          <option value="5 to 10 Lacs">5 TO 10 LACS</option>
+                          <option value="Above 10 Lacs">ABOVE 10 LACS</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="input-label" for="joint2Occupation">Occupation</label>
+                        <select id="joint2Occupation" class="form-select font-bold" onchange="FDApp.toggleOccupationOther('joint2', this)">
+                          <option value="" selected>-- SELECT OCCUPATION --</option>
+                          <option value="Service">SERVICE</option>
+                          <option value="Business">BUSINESS</option>
+                          <option value="Self Employed">SELF EMPLOYED</option>
+                          <option value="Retired">RETIRED</option>
+                          <option value="Student">STUDENT</option>
+                          <option value="Housewife">HOUSEWIFE</option>
+                          <option value="Other">OTHER</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div id="joint2OccupationOtherDiv" style="display:none;">
+                      <label class="input-label" for="joint2OccupationOther">Specify Occupation</label>
+                      <input type="text" id="joint2OccupationOther" class="form-input font-semibold" placeholder="ENTER OCCUPATION">
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+
+
+            <!-- ==================== SECTION 2: TYPE OF DEPOSIT ==================== -->
+            <div class="form-card">
+              <div class="section-header">
+                <div class="flex items-center gap-2.5 font-bold text-base">
+                  <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 font-bold flex items-center justify-center text-xs shadow">2</span>
+                  SECTION 2: TYPE OF DEPOSIT SCHEME (ડિપોઝીટ યોજના)
+                </div>
+              </div>
+              <div class="p-5">
+                <div class="max-w-md">
+                  <label class="input-label font-bold text-slate-900" for="typeOfDeposit">Type Of Deposit Scheme <span class="req">*</span></label>
+                  <select id="typeOfDeposit" class="form-select text-base font-bold text-blue-950 bg-blue-50/70 border-2 border-blue-400">
+                    <option value="Fixed Deposit (FD)">FIXED DEPOSIT (FD) / ફિક્સ ડિપોઝીટ</option>
+                    <option value="Reinvestment Deposit (RD)">REINVESTMENT DEPOSIT (RD) / પુનઃરોકાણ</option>
+                    <option value="Recuring Deposit (RD)">RECURRING DEPOSIT (RD) / રિકરીંગ</option>
+                    <option value="Senior Citizen Deposit">SENIOR CITIZEN DEPOSIT / સિનિયર સિટીઝન</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+
+            <!-- ==================== SECTION 3: DEPOSIT & INTEREST DETAILS ==================== -->
+            <div class="form-card">
+              <div class="section-header">
+                <div class="flex items-center gap-2.5 font-bold text-base">
+                  <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 font-bold flex items-center justify-center text-xs shadow">3</span>
+                  SECTION 3: DEPOSIT, INTEREST & MATURITY DETAILS (ડિપોઝીટ રકમ અને પાકતી મુદતે મળવાપાત્ર રકમ)
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="btnAddExtraDeposit" onclick="FDApp.addExtraDeposit()" class="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-blue-950 font-black text-xs rounded-lg shadow transition flex items-center gap-1.5 border border-amber-500 cursor-pointer">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> + એફડી ઉમેરો (+ Add FD)
+                  </button>
+                  <span class="badge-gold hidden sm:inline-block">Auto ROI & Calc</span>
+                </div>
+              </div>
+
+              <div class="p-5 space-y-5">
+
+                <!-- Deposit 1 -->
+                <div class="p-4 bg-blue-50/50 rounded-xl border-2 border-blue-300 space-y-3">
+                  <div class="flex items-center justify-between border-b-2 border-blue-200 pb-2">
+                    <span class="font-bold text-sm text-blue-950 flex items-center gap-1.5">
+                      <i data-lucide="check-circle-2" class="w-4 h-4 text-blue-700"></i> Deposit 1 (મુખ્ય ડિપોઝીટ ૧) <span class="req">*</span>
+                    </span>
+                    <span class="text-xs text-blue-950 font-bold bg-blue-200 px-2.5 py-0.5 rounded border border-blue-300">Primary Deposit</span>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div class="md:col-span-3">
+                      <label class="input-label" for="deposit1Amount">Deposit 1 Amount (₹) <span class="req">*</span></label>
+                      <input type="number" id="deposit1Amount" class="form-input font-black text-blue-950 text-base" placeholder="E.G. 100000">
+                    </div>
+                    <div class="md:col-span-5">
+                      <label class="input-label" for="deposit1AmountWords">Amount in Words (UPPERCASE)</label>
+                      <input type="text" id="deposit1AmountWords" class="form-input highlight-readonly font-bold uppercase" readonly placeholder="AUTO WORDS...">
+                    </div>
+                    <div class="md:col-span-2">
+                      <label class="input-label">Tenure (Y-M-D) <span class="req">*</span></label>
+                      <div class="grid grid-cols-3 gap-1">
+                        <input type="number" id="deposit1Years" class="form-input text-center px-1 font-bold" placeholder="Yrs">
+                        <input type="number" id="deposit1Months" class="form-input text-center px-1 font-bold" placeholder="Mos">
+                        <input type="number" id="deposit1Days" class="form-input text-center px-1 font-bold" placeholder="Dys">
+                      </div>
+                    </div>
+                    <div class="md:col-span-1">
+                      <label class="input-label" for="deposit1Roi">ROI (%)</label>
+                      <input type="text" id="deposit1Roi" class="form-input font-black text-center text-blue-950 border-2 border-amber-400 bg-amber-50/50" placeholder="ROI %">
+                    </div>
+                    <div class="md:col-span-1">
+                      <label class="input-label text-emerald-950 font-black" for="deposit1MaturityAmount">Maturity (₹)</label>
+                      <input type="text" id="deposit1MaturityAmount" class="form-input font-black text-center text-emerald-900 bg-emerald-50 border-2 border-emerald-400" readonly placeholder="Maturity ₹">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Deposit 2 (Initially Hidden, shown on + Add FD) -->
+                <div id="depositCard_2" style="display:none;" class="p-4 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-3">
+                  <div class="flex items-center justify-between border-b border-slate-300 pb-2">
+                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                      <i data-lucide="circle" class="w-4 h-4 text-blue-600"></i> Deposit 2 (ડિપોઝીટ ૨ - વધારાની એફડી)
+                    </span>
+                    <button type="button" onclick="FDApp.removeExtraDeposit(2)" class="text-xs text-red-600 hover:text-red-800 font-bold flex items-center gap-1 cursor-pointer bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded border border-red-200">
+                      <i data-lucide="x" class="w-3.5 h-3.5"></i> રદ કરો (Remove)
+                    </button>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div class="md:col-span-3">
+                      <label class="input-label" for="deposit2Amount">Deposit 2 Amount (₹)</label>
+                      <input type="number" id="deposit2Amount" class="form-input font-bold text-slate-900" placeholder="E.G. 50000">
+                    </div>
+                    <div class="md:col-span-5">
+                      <label class="input-label" for="deposit2AmountWords">Deposit 2 Amount in Words</label>
+                      <input type="text" id="deposit2AmountWords" class="form-input highlight-readonly font-bold uppercase" readonly placeholder="AUTO WORDS...">
+                    </div>
+                    <div class="md:col-span-2">
+                      <label class="input-label">Tenure (Y-M-D)</label>
+                      <div class="grid grid-cols-3 gap-1">
+                        <input type="number" id="deposit2Years" class="form-input text-center px-1 font-bold" placeholder="Yrs">
+                        <input type="number" id="deposit2Months" class="form-input text-center px-1 font-bold" placeholder="Mos">
+                        <input type="number" id="deposit2Days" class="form-input text-center px-1 font-bold" placeholder="Dys">
+                      </div>
+                    </div>
+                    <div class="md:col-span-1">
+                      <label class="input-label" for="deposit2Roi">ROI (%)</label>
+                      <input type="text" id="deposit2Roi" class="form-input font-black text-center text-slate-900 border-2 border-slate-400" placeholder="ROI %">
+                    </div>
+                    <div class="md:col-span-1">
+                      <label class="input-label text-emerald-950 font-black" for="deposit2MaturityAmount">Maturity (₹)</label>
+                      <input type="text" id="deposit2MaturityAmount" class="form-input font-black text-center text-emerald-900 bg-emerald-50 border-2 border-emerald-400" readonly placeholder="Maturity ₹">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Deposit 3 (Initially Hidden, shown on second + Add FD) -->
+                <div id="depositCard_3" style="display:none;" class="p-4 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-3">
+                  <div class="flex items-center justify-between border-b border-slate-300 pb-2">
+                    <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5">
+                      <i data-lucide="circle" class="w-4 h-4 text-blue-600"></i> Deposit 3 (ડિપોઝીટ ૩ - વધારાની એફડી)
+                    </span>
+                    <button type="button" onclick="FDApp.removeExtraDeposit(3)" class="text-xs text-red-600 hover:text-red-800 font-bold flex items-center gap-1 cursor-pointer bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded border border-red-200">
+                      <i data-lucide="x" class="w-3.5 h-3.5"></i> રદ કરો (Remove)
+                    </button>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div class="md:col-span-3">
+                      <label class="input-label" for="deposit3Amount">Deposit 3 Amount (₹)</label>
+                      <input type="number" id="deposit3Amount" class="form-input font-bold text-slate-900" placeholder="E.G. 25000">
+                    </div>
+                    <div class="md:col-span-5">
+                      <label class="input-label" for="deposit3AmountWords">Deposit 3 Amount in Words</label>
+                      <input type="text" id="deposit3AmountWords" class="form-input highlight-readonly font-bold uppercase" readonly placeholder="AUTO WORDS...">
+                    </div>
+                    <div class="md:col-span-2">
+                      <label class="input-label">Tenure (Y-M-D)</label>
+                      <div class="grid grid-cols-3 gap-1">
+                        <input type="number" id="deposit3Years" class="form-input text-center px-1 font-bold" placeholder="Yrs">
+                        <input type="number" id="deposit3Months" class="form-input text-center px-1 font-bold" placeholder="Mos">
+                        <input type="number" id="deposit3Days" class="form-input text-center px-1 font-bold" placeholder="Dys">
+                      </div>
+                    </div>
+                    <div class="md:col-span-1">
+                      <label class="input-label" for="deposit3Roi">ROI (%)</label>
+                      <input type="text" id="deposit3Roi" class="form-input font-black text-center text-slate-900 border-2 border-slate-400" placeholder="ROI %">
+                    </div>
+                    <div class="md:col-span-1">
+                      <label class="input-label text-emerald-950 font-black" for="deposit3MaturityAmount">Maturity (₹)</label>
+                      <input type="text" id="deposit3MaturityAmount" class="form-input font-black text-center text-emerald-900 bg-emerald-50 border-2 border-emerald-400" readonly placeholder="Maturity ₹">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Interest Payout & Renewal Instructions -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                  <div>
+                    <label class="input-label" for="interestPaymentMode">Interest Payment Mode <span class="req">*</span></label>
+                    <select id="interestPaymentMode" class="form-select font-bold text-slate-900">
+                      <option value="On Maturity">ON MATURITY (પાકતી મુદતે)</option>
+                      <option value="Monthly">MONTHLY (માસિક)</option>
+                      <option value="Quarterly">QUARTERLY (ત્રિમાસિક)</option>
+                      <option value="Half Yearly">HALF YEARLY (અર્ધવાર્ષિક)</option>
+                      <option value="Yearly">YEARLY (વાર્ષિક)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="input-label" for="interestCreditAccNo">Interest Credit A/c No (15 Digits) <span class="req">*</span></label>
+                    <input type="text" id="interestCreditAccNo" maxlength="15" pattern="[0-9]{15}" class="form-input font-mono font-bold text-slate-900" placeholder="15 DIGIT A/C NO (E.G. 001131800072050)" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 15)">
+                    <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Must be exactly 15 numeric digits (ફરજિયાત ૧૫ અંક)</p>
+                  </div>
+
+                  <div>
+                    <label class="input-label" for="renewalInstruction">Renewal Instruction <span class="req">*</span></label>
+                    <select id="renewalInstruction" class="form-select font-bold text-slate-900">
+                      <option value="Auto Renewal (Principal + Interest)">AUTO RENEWAL (PRINCIPAL + INTEREST)</option>
+                      <option value="Auto Renewal (Principal Only)">AUTO RENEWAL (PRINCIPAL ONLY)</option>
+                      <option value="Pay On Maturity">PAY ON MATURITY (પાકતી મુદતે ચૂકવવું)</option>
+                    </select>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+
+            <!-- ==================== SECTION 4: NOMINATION DETAILS ==================== -->
+            <div class="form-card">
+              <div class="section-header">
+                <div class="flex items-center gap-2.5 font-bold text-base">
+                  <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 font-bold flex items-center justify-center text-xs shadow">4</span>
+                  SECTION 4: NOMINATION PARTICULARS (Form DA-1)
+                </div>
+                <span class="text-xs text-blue-200 font-bold">1 TO 4 NOMINEES</span>
+              </div>
+
+              <div class="p-5 space-y-4">
+                
+                <div id="nomineesGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  
+                  <!-- Nominee 1 -->
+                  <div id="nomineeCard_1" class="p-3.5 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-2.5">
+                    <div class="font-bold text-xs text-blue-950 flex justify-between border-b border-slate-300 pb-1">
+                      <span>NOMINEE 1</span>
+                      <span class="text-blue-700 font-black">Primary</span>
+                    </div>
+                    <div>
+                      <label class="input-label" for="nominee1Name">Full Name</label>
+                      <input type="text" id="nominee1Name" class="form-input font-bold" placeholder="FULL NAME">
+                    </div>
+                    <div>
+                      <label class="input-label" for="nominee1Relation">Relationship</label>
+                      <select id="nominee1Relation" class="form-select font-bold">
+                        <option value="" selected>-- SELECT RELATION --</option>
+                        <option value="Spouse">SPOUSE (પતિ / પત્ની)</option>
+                        <option value="Father">FATHER (પિતા)</option>
+                        <option value="Mother">MOTHER (માતા)</option>
+                        <option value="Son">SON (પુત્ર)</option>
+                        <option value="Daughter">DAUGHTER (પુત્રી)</option>
+                        <option value="Sister">SISTER (બહેન)</option>
+                        <option value="Brother">BROTHER (ભાઈ)</option>
+                        <option value="Friend">FRIEND (મિત્ર)</option>
+                        <option value="Father In Law">FATHER IN LAW</option>
+                        <option value="Mother In Law">MOTHER IN LAW</option>
+                        <option value="Grand Father">GRAND FATHER</option>
+                        <option value="Grand Mother">GRAND MOTHER</option>
+                        <option value="Grand Son">GRAND SON</option>
+                        <option value="Grand Daughter">GRAND DAUGHTER</option>
+                        <option value="Relatives">RELATIVES (સગા)</option>
+                      </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                      <div>
+                        <label class="input-label" for="nominee1Dob">DOB</label>
+                        <input type="date" id="nominee1Dob" class="form-input px-1 font-bold">
+                      </div>
+                      <div>
+                        <label class="input-label" for="nominee1Share">Share %</label>
+                        <input type="number" id="nominee1Share" class="form-input font-black text-center" placeholder="100" value="100">
+                      </div>
+                    </div>
+                    <div>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="input-label mb-0" for="nominee1Address">Address</label>
+                        <label class="flex items-center gap-1 text-[10.5px] font-bold text-blue-900 bg-blue-100 hover:bg-blue-200 px-1.5 py-0.5 rounded border border-blue-300 cursor-pointer">
+                          <input type="checkbox" id="nominee1SameAsFirstAddr" onchange="FDApp.syncAddress('nominee1Address', this)" class="w-3 h-3 rounded text-blue-700">
+                          <span>Same As 1st</span>
+                        </label>
+                      </div>
+                      <input type="text" id="nominee1Address" class="form-input font-semibold uppercase" placeholder="RESIDENTIAL ADDRESS">
+                    </div>
+                  </div>
+
+                  <!-- Nominee 2 -->
+                  <div id="nomineeCard_2" class="p-3.5 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-2.5">
+                    <div class="font-bold text-xs text-slate-800 flex justify-between border-b border-slate-300 pb-1">
+                      <span>NOMINEE 2</span>
+                    </div>
+                    <div>
+                      <label class="input-label" for="nominee2Name">Full Name</label>
+                      <input type="text" id="nominee2Name" class="form-input font-bold" placeholder="FULL NAME">
+                    </div>
+                    <div>
+                      <label class="input-label" for="nominee2Relation">Relationship</label>
+                      <select id="nominee2Relation" class="form-select font-bold">
+                        <option value="" selected>-- SELECT RELATION --</option>
+                        <option value="Spouse">SPOUSE (પતિ / પત્ની)</option>
+                        <option value="Father">FATHER (પિતા)</option>
+                        <option value="Mother">MOTHER (માતા)</option>
+                        <option value="Son">SON (પુત્ર)</option>
+                        <option value="Daughter">DAUGHTER (પુત્રી)</option>
+                        <option value="Sister">SISTER (બહેન)</option>
+                        <option value="Brother">BROTHER (ભાઈ)</option>
+                        <option value="Friend">FRIEND (મિત્ર)</option>
+                        <option value="Father In Law">FATHER IN LAW</option>
+                        <option value="Mother In Law">MOTHER IN LAW</option>
+                        <option value="Grand Father">GRAND FATHER</option>
+                        <option value="Grand Mother">GRAND MOTHER</option>
+                        <option value="Grand Son">GRAND SON</option>
+                        <option value="Grand Daughter">GRAND DAUGHTER</option>
+                        <option value="Relatives">RELATIVES (સગા)</option>
+                      </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                      <div>
+                        <label class="input-label" for="nominee2Dob">DOB</label>
+                        <input type="date" id="nominee2Dob" class="form-input px-1 font-bold">
+                      </div>
+                      <div>
+                        <label class="input-label" for="nominee2Share">Share %</label>
+                        <input type="number" id="nominee2Share" class="form-input font-black text-center" placeholder="%">
+                      </div>
+                    </div>
+                    <div>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="input-label mb-0" for="nominee2Address">Address</label>
+                        <label class="flex items-center gap-1 text-[10.5px] font-bold text-slate-900 bg-slate-200 hover:bg-slate-300 px-1.5 py-0.5 rounded border border-slate-300 cursor-pointer">
+                          <input type="checkbox" id="nominee2SameAsFirstAddr" onchange="FDApp.syncAddress('nominee2Address', this)" class="w-3 h-3 rounded text-slate-700">
+                          <span>Same As 1st</span>
+                        </label>
+                      </div>
+                      <input type="text" id="nominee2Address" class="form-input font-semibold uppercase" placeholder="RESIDENTIAL ADDRESS">
+                    </div>
+                  </div>
+
+                  <!-- Nominee 3 -->
+                  <div id="nomineeCard_3" class="p-3.5 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-2.5">
+                    <div class="font-bold text-xs text-slate-800 flex justify-between border-b border-slate-300 pb-1">
+                      <span>NOMINEE 3</span>
+                    </div>
+                    <div>
+                      <label class="input-label" for="nominee3Name">Full Name</label>
+                      <input type="text" id="nominee3Name" class="form-input font-bold" placeholder="FULL NAME">
+                    </div>
+                    <div>
+                      <label class="input-label" for="nominee3Relation">Relationship</label>
+                      <select id="nominee3Relation" class="form-select font-bold">
+                        <option value="" selected>-- SELECT RELATION --</option>
+                        <option value="Spouse">SPOUSE (પતિ / પત્ની)</option>
+                        <option value="Father">FATHER (પિતા)</option>
+                        <option value="Mother">MOTHER (માતા)</option>
+                        <option value="Son">SON (પુત્ર)</option>
+                        <option value="Daughter">DAUGHTER (પુત્રી)</option>
+                        <option value="Sister">SISTER (બહેન)</option>
+                        <option value="Brother">BROTHER (ભાઈ)</option>
+                        <option value="Friend">FRIEND (મિત્ર)</option>
+                        <option value="Father In Law">FATHER IN LAW</option>
+                        <option value="Mother In Law">MOTHER IN LAW</option>
+                        <option value="Grand Father">GRAND FATHER</option>
+                        <option value="Grand Mother">GRAND MOTHER</option>
+                        <option value="Grand Son">GRAND SON</option>
+                        <option value="Grand Daughter">GRAND DAUGHTER</option>
+                        <option value="Relatives">RELATIVES (સગા)</option>
+                      </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                      <div>
+                        <label class="input-label" for="nominee3Dob">DOB</label>
+                        <input type="date" id="nominee3Dob" class="form-input px-1 font-bold">
+                      </div>
+                      <div>
+                        <label class="input-label" for="nominee3Share">Share %</label>
+                        <input type="number" id="nominee3Share" class="form-input font-black text-center" placeholder="%">
+                      </div>
+                    </div>
+                    <div>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="input-label mb-0" for="nominee3Address">Address</label>
+                        <label class="flex items-center gap-1 text-[10.5px] font-bold text-slate-900 bg-slate-200 hover:bg-slate-300 px-1.5 py-0.5 rounded border border-slate-300 cursor-pointer">
+                          <input type="checkbox" id="nominee3SameAsFirstAddr" onchange="FDApp.syncAddress('nominee3Address', this)" class="w-3 h-3 rounded text-slate-700">
+                          <span>Same As 1st</span>
+                        </label>
+                      </div>
+                      <input type="text" id="nominee3Address" class="form-input font-semibold uppercase" placeholder="RESIDENTIAL ADDRESS">
+                    </div>
+                  </div>
+
+                  <!-- Nominee 4 -->
+                  <div id="nomineeCard_4" class="p-3.5 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-2.5">
+                    <div class="font-bold text-xs text-slate-800 flex justify-between border-b border-slate-300 pb-1">
+                      <span>NOMINEE 4</span>
+                    </div>
+                    <div>
+                      <label class="input-label" for="nominee4Name">Full Name</label>
+                      <input type="text" id="nominee4Name" class="form-input font-bold" placeholder="FULL NAME">
+                    </div>
+                    <div>
+                      <label class="input-label" for="nominee4Relation">Relationship</label>
+                      <select id="nominee4Relation" class="form-select font-bold">
+                        <option value="" selected>-- SELECT RELATION --</option>
+                        <option value="Spouse">SPOUSE (પતિ / પત્ની)</option>
+                        <option value="Father">FATHER (પિતા)</option>
+                        <option value="Mother">MOTHER (માતા)</option>
+                        <option value="Son">SON (પુત્ર)</option>
+                        <option value="Daughter">DAUGHTER (પુત્રી)</option>
+                        <option value="Sister">SISTER (બહેન)</option>
+                        <option value="Brother">BROTHER (ભાઈ)</option>
+                        <option value="Friend">FRIEND (મિત્ર)</option>
+                        <option value="Father In Law">FATHER IN LAW</option>
+                        <option value="Mother In Law">MOTHER IN LAW</option>
+                        <option value="Grand Father">GRAND FATHER</option>
+                        <option value="Grand Mother">GRAND MOTHER</option>
+                        <option value="Grand Son">GRAND SON</option>
+                        <option value="Grand Daughter">GRAND DAUGHTER</option>
+                        <option value="Relatives">RELATIVES (સગા)</option>
+                      </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                      <div>
+                        <label class="input-label" for="nominee4Dob">DOB</label>
+                        <input type="date" id="nominee4Dob" class="form-input px-1 font-bold">
+                      </div>
+                      <div>
+                        <label class="input-label" for="nominee4Share">Share %</label>
+                        <input type="number" id="nominee4Share" class="form-input font-black text-center" placeholder="%">
+                      </div>
+                    </div>
+                    <div>
+                      <div class="flex items-center justify-between mb-1">
+                        <label class="input-label mb-0" for="nominee4Address">Address</label>
+                        <label class="flex items-center gap-1 text-[10.5px] font-bold text-slate-900 bg-slate-200 hover:bg-slate-300 px-1.5 py-0.5 rounded border border-slate-300 cursor-pointer">
+                          <input type="checkbox" id="nominee4SameAsFirstAddr" onchange="FDApp.syncAddress('nominee4Address', this)" class="w-3 h-3 rounded text-slate-700">
+                          <span>Same As 1st</span>
+                        </label>
+                      </div>
+                      <input type="text" id="nominee4Address" class="form-input font-semibold uppercase" placeholder="RESIDENTIAL ADDRESS">
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Guardian for Minor Nominee -->
+                <div id="minorGuardianSection" class="p-4 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-3">
+                  <div class="text-xs font-black text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1.5">
+                    <span class="flex items-center gap-1.5">
+                      <i data-lucide="shield-alert" class="w-4 h-4 text-blue-800"></i> GUARDIAN PARTICULARS (If Minor : Guardian Name / સગીર હોય તો વાલીનું નામ)
+                    </span>
+                    <span class="text-[11px] text-slate-500 font-bold">(Optional / If applicable)</span>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                      <label class="input-label" for="guardianName">If Minor : Guardian Name / સગીર હોય તો વાલીનું નામ</label>
+                      <input type="text" id="guardianName" class="form-input font-bold uppercase" placeholder="ENTER GUARDIAN FULL NAME">
+                    </div>
+                    <div>
+                      <label class="input-label" for="relationWithGuardian">Relationship / સંબંધ</label>
+                      <select id="relationWithGuardian" class="form-select font-bold">
+                        <option value="" selected>-- SELECT RELATION --</option>
+                        <option value="Spouse">SPOUSE (પતિ / પત્ની)</option>
+                        <option value="Father">FATHER (પિતા)</option>
+                        <option value="Mother">MOTHER (માતા)</option>
+                        <option value="Son">SON (પુત્ર)</option>
+                        <option value="Daughter">DAUGHTER (પુત્રી)</option>
+                        <option value="Sister">SISTER (બહેન)</option>
+                        <option value="Brother">BROTHER (ભાઈ)</option>
+                        <option value="Friend">FRIEND (મિત્ર)</option>
+                        <option value="Father In Law">FATHER IN LAW</option>
+                        <option value="Mother In Law">MOTHER IN LAW</option>
+                        <option value="Grand Father">GRAND FATHER</option>
+                        <option value="Grand Mother">GRAND MOTHER</option>
+                        <option value="Grand Son">GRAND SON</option>
+                        <option value="Grand Daughter">GRAND DAUGHTER</option>
+                        <option value="Relatives">RELATIVES (સગા)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+
+            <!-- ==================== SECTION 5: TDS / TAX DECLARATION ==================== -->
+            <div class="form-card">
+              <div class="section-header">
+                <div class="flex items-center gap-2.5 font-bold text-base">
+                  <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 font-bold flex items-center justify-center text-xs shadow">5</span>
+                  SECTION 5: TAX / TDS DECLARATION (ટેક્સ ઘોષણા)
+                </div>
+              </div>
+              <div class="p-5 space-y-3">
+                
+                <label class="flex items-start gap-3 p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl border-2 border-slate-300 cursor-pointer transition">
+                  <input type="checkbox" id="form121Below60" class="mt-1 w-5 h-5 text-blue-800 rounded border-2 border-slate-400">
+                  <span class="text-xs sm:text-sm text-slate-900 leading-relaxed">
+                    <strong class="text-blue-950">I Submit form 121 (Below 60 years) :</strong> My Estimated total Income is below the taxable Limit. TDS should not be deducted. <br>
+                    <span class="text-slate-700 font-bold">હું ફોર્મ 121 (60 વર્ષ નીચે) રજુ કરૂ છું. મારી અંદાજિત કુલ આવક કરપાત્ર મર્યાદા કરતા ઓછી છે. તેથી TDS કાપવો નહિ.</span>
+                  </span>
+                </label>
+
+                <label class="flex items-start gap-3 p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl border-2 border-slate-300 cursor-pointer transition">
+                  <input type="checkbox" id="form121Above60" class="mt-1 w-5 h-5 text-blue-800 rounded border-2 border-slate-400">
+                  <span class="text-xs sm:text-sm text-slate-900 leading-relaxed">
+                    <strong class="text-blue-950">I Submit form 121 (Senior Citizen above 60 years) :</strong> Tax on my estimated total income of current year is NIL. <br>
+                    <span class="text-slate-700 font-bold">હું ફોર્મ 121 (60+વર્ષ) રજૂ કરૂ છું, ચાલુ વર્ષે માટે મારી અંદાજિત કુલ આવક પર ટેકસ શૂન્ય છે.</span>
+                  </span>
+                </label>
+
+                <label class="flex items-start gap-3 p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl border-2 border-slate-300 cursor-pointer transition">
+                  <input type="checkbox" id="tdsApplicable" class="mt-1 w-5 h-5 text-blue-800 rounded border-2 border-slate-400">
+                  <span class="text-xs sm:text-sm text-slate-900 leading-relaxed">
+                    <strong class="text-blue-950">TDS to be deducted as applicable :</strong> નિયમ અનુસાર લાગુ પડતો TDS કાપવો.
+                  </span>
+                </label>
+
+              </div>
+            </div>
+
+
+            <!-- ==================== SECTION 6: MODE OF PAYMENT & SOURCE ==================== -->
+            <div class="form-card">
+              <div class="section-header">
+                <div class="flex items-center gap-2.5 font-bold text-base">
+                  <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 font-bold flex items-center justify-center text-xs shadow">6</span>
+                  SECTION 6: PAYMENT & SOURCE OF FUNDS (ચુકવણી અને ભંડોળનો સ્ત્રોત)
+                </div>
+              </div>
+              <div class="p-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  <div class="space-y-3">
+                    <div>
+                      <label class="input-label" for="paymentMode">Mode of Payment <span class="req">*</span></label>
+                      <select id="paymentMode" class="form-select font-bold text-slate-900">
+                        <option value="Cash">CASH (રોકડ)</option>
+                        <option value="Cheque">CHEQUE (ચેક)</option>
+                        <option value="NEFT / RTGS">NEFT / RTGS</option>
+                        <option value="Transfer from A/c">TRANSFER FROM A/C</option>
+                      </select>
+                    </div>
+                    <div id="transferAccDiv" style="display:none;">
+                      <label class="input-label" for="transferAccountNo">Debit Account No. <span class="req">*</span></label>
+                      <input type="text" id="transferAccountNo" class="form-input font-mono font-bold text-blue-950 uppercase" placeholder="ENTER DEBIT ACCOUNT NUMBER">
+                    </div>
+                  </div>
+
+                  <div class="space-y-3">
+                    <div>
+                      <label class="input-label" for="sourceOfFunds">Source of Funds <span class="req">*</span></label>
+                      <select id="sourceOfFunds" class="form-select font-bold text-slate-900">
+                        <option value="Salary / Pension">SALARY / PENSION (પગાર / પેન્શન)</option>
+                        <option value="Business Income">BUSINESS INCOME (ધંધાકીય આવક)</option>
+                        <option value="Saving">SAVING (બચત)</option>
+                        <option value="Inheritance">INHERITANCE (વારસાગત મિલકત)</option>
+                        <option value="Other">OTHER (અન્ય)</option>
+                      </select>
+                    </div>
+                    <div id="sourceOfFundsOtherDiv" style="display:none;">
+                      <label class="input-label" for="sourceOfFundsOther">Specify Other Source</label>
+                      <input type="text" id="sourceOfFundsOther" class="form-input font-semibold uppercase" placeholder="ENTER FUND SOURCE">
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+
+            <!-- ==================== SECTION 7: KYC PROOFS ==================== -->
+            <div class="form-card">
+              <div class="section-header">
+                <div class="flex items-center gap-2.5 font-bold text-base">
+                  <span class="w-6 h-6 rounded bg-amber-400 text-blue-950 font-bold flex items-center justify-center text-xs shadow">7</span>
+                  SECTION 7: KYC DOCUMENTS (કેવાયસી પુરાવા)
+                </div>
+              </div>
+              <div class="p-5 space-y-4">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="input-label" for="identityProof">Identity Proof <span class="req">*</span></label>
+                    <select id="identityProof" class="form-select font-bold text-slate-900">
+                      <option value="Aadhaar Card">AADHAAR CARD (આધાર કાર્ડ)</option>
+                      <option value="PAN Card">PAN CARD (પાન કાર્ડ)</option>
+                      <option value="Voter ID">VOTER ID (ચૂંટણી કાર્ડ)</option>
+                      <option value="Passport">PASSPORT (પાસપોર્ટ)</option>
+                      <option value="Driving License">DRIVING LICENSE</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="input-label" for="addressProof">Address Proof <span class="req">*</span></label>
+                    <select id="addressProof" class="form-select font-bold text-slate-900">
+                      <option value="Aadhaar Card">AADHAAR CARD (આધાર કાર્ડ)</option>
+                      <option value="Passport">PASSPORT (પાસપોર્ટ)</option>
+                      <option value="Utility Bill (< 3 Months)">UTILITY BILL (< 3 MONTHS)</option>
+                      <option value="Bank Statement">BANK STATEMENT</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="input-label" for="additionalProof">Additional Proof</label>
+                    <select id="additionalProof" class="form-select font-bold text-slate-900">
+                      <option value="Recent Passport size Photographs">RECENT PASSPORT SIZE PHOTOGRAPHS</option>
+                      <option value="Senior Citizen Certificate">SENIOR CITIZEN CERTIFICATE</option>
+                      <option value="Both Photographs & Senior Citizen Certificate">BOTH PHOTOS & SENIOR CERTIFICATE</option>
+                    </select>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+
+            <!-- ==================== SEPARATE DEDICATED SECTION: FOR BANK USE ONLY ==================== -->
+            <div class="bank-officer-box shadow-md">
+              <div class="flex items-center justify-between border-b-2 border-amber-300 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                  <span class="w-8 h-8 rounded-lg bg-amber-600 text-white font-black flex items-center justify-center text-base shadow">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                  </span>
+                  <div>
+                    <h3 class="text-base font-black text-amber-950 uppercase tracking-wide">
+                      FOR BANK USE ONLY (ફક્ત બેંકના ઉપયોગ માટે)
+                    </h3>
+                    <p class="text-xs text-amber-900 font-bold">
+                      INTERNAL VERIFICATION & AUTHORIZATION
+                    </p>
+                  </div>
+                </div>
+                <span class="text-xs bg-amber-200 text-amber-950 px-3 py-1 rounded-full font-black border border-amber-400">
+                  BANK AUTHORIZATION
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white p-4 rounded-xl border-2 border-amber-300 shadow-sm">
+                  <label class="input-label font-bold text-blue-950 flex items-center gap-1.5" for="enteredBy">
+                    <i data-lucide="user" class="w-4 h-4 text-blue-700"></i> Entered By (Operator / Clerk ID & Name) <span class="req">*</span>
+                  </label>
+                  <input type="text" id="enteredBy" class="form-input font-bold text-slate-900 border-2 border-amber-300 uppercase" placeholder="OPERATOR ID & FULL NAME">
+                  <p class="text-[11px] text-slate-600 font-semibold mt-1">OPERATOR / CLERK NAME & ID</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border-2 border-amber-300 shadow-sm">
+                  <label class="input-label font-bold text-blue-950 flex items-center gap-1.5" for="authorizedBy">
+                    <i data-lucide="award" class="w-4 h-4 text-amber-700"></i> Authorized By (Officer Name & ID) <span class="req">*</span>
+                  </label>
+                  <input type="text" id="authorizedBy" class="form-input font-bold text-slate-900 border-2 border-amber-300 uppercase" placeholder="OFFICER / MANAGER ID & NAME">
+                  <p class="text-[11px] text-slate-600 font-semibold mt-1">OFFICER / MANAGER NAME & ID</p>
+                </div>
+              </div>
+            </div>
+
+
+            <!-- Floating Bottom Quick Submit Bar -->
+            <div class="bg-white p-4 rounded-2xl border-2 border-slate-300 shadow-lg flex flex-wrap items-center justify-between gap-3">
+              <div class="text-xs text-slate-700 font-bold flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-emerald-600 animate-pulse"></div>
+                The Junagadh Commercial Co-Operative Bank Ltd. • English UpperCase & Maturity Calc Enforced
+              </div>
+              <div class="flex items-center gap-3">
+                <button type="button" onclick="FDApp.saveToLocalStorage()" class="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl shadow transition flex items-center gap-2 text-sm border border-emerald-800 cursor-pointer">
+                  <i data-lucide="save" class="w-4 h-4"></i> SAVE TO REGISTER (સેવ કરો)
+                </button>
+                <button type="button" onclick="FDApp.printForm()" class="px-7 py-2.5 bg-gradient-to-r from-blue-900 to-slate-900 hover:from-blue-800 hover:to-slate-800 text-white font-black rounded-xl shadow-xl hover:shadow-2xl transition flex items-center gap-2 text-sm border-2 border-amber-400 cursor-pointer">
+                  <i data-lucide="printer" class="w-4 h-4 text-amber-400"></i> PRINT APPLICATION (પ્રિન્ટ / PDF)
+                </button>
+              </div>
+            </div>
+
+          </form>
+
+        </div>
+
+
+        <!-- ==================== VIEW 2: FD ENTRY FORM REGISTER (WITH NEWEST ON TOP, EDIT, DIRECT PRINT, DELETE) ==================== -->
+        <div id="registerView" style="display:none;" class="space-y-6">
+          <div class="bg-white p-6 rounded-2xl border-2 border-slate-300 shadow-sm space-y-5">
+            
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-black shadow">
+                  <i data-lucide="table-2" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <h2 class="text-xl font-black text-slate-900">FD ENTRY FORM REGISTER (ફિક્સ ડિપોઝીટ રજીસ્ટર)</h2>
+                  <p class="text-xs text-slate-500 font-semibold">The Junagadh Commercial Co-Operative Bank Ltd. • Real-time Application Records</p>
+                </div>
+              </div>
+              
+              <div class="flex flex-wrap items-center gap-2">
+                <button onclick="FDApp.resetForm()" class="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                  <i data-lucide="plus-circle" class="w-4 h-4 text-amber-300"></i> + NEW FORM
+                </button>
+                <button onclick="FDApp.exportXLSX()" class="px-3 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                  <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-amber-300"></i> Excel (.xlsx)
+                </button>
+                <button onclick="FDApp.exportCSV()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-blue-200 text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-400"></i> CSV (.csv)
+                </button>
+                <label class="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 text-xs font-black rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                  <i data-lucide="upload" class="w-3.5 h-3.5 text-slate-950"></i> Restore (.xlsx/.csv)
+                  <input type="file" accept=".xlsx, .xls, .csv, .json" onchange="FDApp.restoreBackupFile(event)" class="hidden">
+                </label>
+                <button onclick="FDApp.clearAllRecords()" class="px-3 py-2 bg-red-800 hover:bg-red-700 text-red-100 text-xs font-bold rounded-lg shadow flex items-center gap-1.5 cursor-pointer">
+                  <i data-lucide="trash" class="w-3.5 h-3.5 text-white"></i> Clear All
+                </button>
+              </div>
+            </div>
+
+            <!-- Main Register Table Container -->
+            <div id="registerTableContainer">
+              <!-- Dynamically populated -->
+            </div>
+
+          </div>
+        </div>
+
+
+        <!-- ==================== VIEW 3: ROI MASTER & RULES PANEL ==================== -->
+        <div id="rateMasterView" style="display:none;" class="space-y-6">
+          <div class="bg-white p-6 rounded-2xl border-2 border-slate-300 shadow-sm space-y-5">
+            
+            <div class="flex items-center justify-between border-b pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-900 text-amber-400 flex items-center justify-center font-black shadow">
+                  <i data-lucide="percent" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <h2 class="text-xl font-black text-slate-900">INTEREST RATE MASTER & RULES (વ્યાજ દર માસ્ટર & બેંક નિયમો)</h2>
+                  <p class="text-xs text-slate-500 font-semibold">The Junagadh Commercial Co-Operative Bank Ltd. • Editable Slabs & Policy</p>
+                </div>
+              </div>
+              <button onclick="FDApp.switchView('form')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg shadow">
+                ← Back to Form
+              </button>
+            </div>
+
+            <!-- Effective Date Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-amber-50 p-4 rounded-xl border-2 border-amber-300">
+              <div class="flex items-center gap-2">
+                <label class="input-label mb-0 text-amber-950 font-bold" for="rateEffectiveDate">Effective From (અમલી તારીખ):</label>
+                <input type="text" id="rateEffectiveDate" onchange="FDApp.updateEffectiveDate(this.value)" class="form-input w-36 font-black text-center text-blue-950 border-amber-400 bg-white" value="01-06-2025">
+              </div>
+              <button onclick="FDApp.resetInterestRatesToDefault()" class="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded shadow">
+                RESET DEFAULT RATES & RULES
+              </button>
+            </div>
+
+            <!-- Slabs Table -->
+            <div class="overflow-x-auto border-2 border-slate-300 rounded-xl shadow-sm">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-800 text-white text-xs font-bold uppercase tracking-wider">
+                    <th rowspan="2" class="p-2.5 text-center border-r border-slate-700 w-12">#</th>
+                    <th rowspan="2" class="p-2.5 border-r border-slate-700 min-w-[200px]">Tenure / Period (મુદત)</th>
+                    <th colspan="2" class="p-2 text-center bg-blue-900 border-r border-slate-700">Deposit (Upto ₹ 14,99,999.00)</th>
+                    <th colspan="2" class="p-2 text-center bg-indigo-900">Bulk Deposit (₹ 15 Lakh & Above)</th>
+                  </tr>
+                  <tr class="bg-slate-700 text-white text-xs font-bold">
+                    <th class="p-2 text-center bg-blue-800 border-r border-slate-600">Normal (સામાન્ય)</th>
+                    <th class="p-2 text-center bg-amber-700 border-r border-slate-600">Senior Citizen (સિનિયર)</th>
+                    <th class="p-2 text-center bg-indigo-800 border-r border-slate-600">Normal (સામાન્ય)</th>
+                    <th class="p-2 text-center bg-emerald-800">Senior Citizen (સિનિયર)</th>
+                  </tr>
+                </thead>
+                <tbody id="rateMasterTbody">
+                  <!-- Dynamically rendered -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Bank Rules -->
+            <div class="p-5 bg-slate-50 rounded-2xl border-2 border-slate-300 space-y-3">
+              <div class="flex items-center gap-2 border-b-2 border-slate-200 pb-2">
+                <i data-lucide="scroll-text" class="w-4 h-4 text-blue-800"></i>
+                <h3 class="text-sm font-black text-slate-900 uppercase">
+                  BANK RULES & POLICIES (બેંક નિયમો - એડિટેબલ)
+                </h3>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                <div class="p-3 bg-white rounded-xl border-2 border-amber-200 shadow-sm space-y-1">
+                  <label class="input-label text-blue-950 font-bold" for="rule_seniorCitizenExtra">
+                    1. Senior Citizen Extra Rate (%)
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input type="number" step="0.01" id="rule_seniorCitizenExtra" onchange="FDApp.updateRule('seniorCitizenExtra', this.value)" class="form-input font-bold text-amber-950" value="0.50">
+                    <span class="text-xs font-bold text-slate-600">% Extra</span>
+                  </div>
+                  <p class="text-[10.5px] text-slate-500 font-semibold">Senior Citizen get 0.5% extra</p>
+                </div>
+
+                <div class="p-3 bg-white rounded-xl border-2 border-indigo-200 shadow-sm space-y-1">
+                  <label class="input-label text-blue-950 font-bold" for="rule_bulkDepositExtra">
+                    2. Bulk Deposit (> 15 Lakh) Extra (%)
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input type="number" step="0.01" id="rule_bulkDepositExtra" onchange="FDApp.updateRule('bulkDepositExtra', this.value)" class="form-input font-bold text-indigo-950" value="0.25">
+                    <span class="text-xs font-bold text-slate-600">% Extra</span>
+                  </div>
+                  <p class="text-[10.5px] text-slate-500 font-semibold">Bulk Deposit Above 15 Lakh get 0.25%</p>
+                </div>
+
+                <div class="p-3 bg-white rounded-xl border-2 border-red-200 shadow-sm space-y-1">
+                  <label class="input-label text-blue-950 font-bold" for="rule_bulkPrematurePenalty">
+                    3. Bulk Pre-Mature Penalty (%)
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input type="number" step="0.01" id="rule_bulkPrematurePenalty" onchange="FDApp.updateRule('bulkPrematurePenalty', this.value)" class="form-input font-bold text-red-950" value="1.00">
+                    <span class="text-xs font-bold text-slate-600">% Penal</span>
+                  </div>
+                  <p class="text-[10.5px] text-slate-500 font-semibold">Bulk Pre Mature – 1.00% penal</p>
+                </div>
+
+                <div class="p-3 bg-white rounded-xl border-2 border-orange-200 shadow-sm space-y-1">
+                  <label class="input-label text-blue-950 font-bold" for="rule_normalPrematurePenalty">
+                    4. Normal Pre-Mature Penalty (%)
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input type="number" step="0.01" id="rule_normalPrematurePenalty" onchange="FDApp.updateRule('normalPrematurePenalty', this.value)" class="form-input font-bold text-orange-950" value="0.50">
+                    <span class="text-xs font-bold text-slate-600">% Penal</span>
+                  </div>
+                  <p class="text-[10.5px] text-slate-500 font-semibold">Normal Pre Mature – 0.50% penal</p>
+                </div>
+
+                <div class="p-3 bg-white rounded-xl border-2 border-emerald-200 shadow-sm space-y-1">
+                  <label class="input-label text-blue-950 font-bold" for="rule_seniorCitizenMinAge">
+                    5. Senior Citizen Minimum Age (Years)
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input type="number" id="rule_seniorCitizenMinAge" onchange="FDApp.updateRule('seniorCitizenMinAge', this.value)" class="form-input font-bold text-emerald-950" value="58">
+                    <span class="text-xs font-bold text-slate-600">Years</span>
+                  </div>
+                  <p class="text-[10.5px] text-slate-500 font-semibold">Senior Citizen benefit start after 58 years completed</p>
+                </div>
+
+                <div class="p-3 bg-white rounded-xl border-2 border-blue-200 shadow-sm space-y-1">
+                  <label class="input-label text-blue-950 font-bold" for="rule_maxTenureMonths">
+                    6. Maximum FDR Tenure (Months)
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input type="number" id="rule_maxTenureMonths" onchange="FDApp.updateRule('maxTenureMonths', this.value)" class="form-input font-bold text-blue-950" value="120">
+                    <span class="text-xs font-bold text-slate-600">Months</span>
+                  </div>
+                  <p class="text-[10.5px] text-slate-500 font-semibold">Above FDR Not more than 120 Months (10 Yrs)</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </main>
+
+    </div>
+
+    <!-- Standard Unified Footer -->
+    <footer class="w-full bg-[#020b33] text-center py-3.5 border-t border-slate-800 text-xs text-slate-400 no-print mt-auto">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div>
+          © 2026 <strong class="text-white">The Junagadh Commercial Co-Operative Bank Ltd.</strong> • All Rights Reserved
+        </div>
+        <div class="flex items-center gap-2 text-slate-300">
+          <i class="fa-solid fa-crown text-[#FDBE34]"></i> Designed by <strong class="text-[#FDBE34]">Rahul Popat</strong>
+          <span class="text-slate-600">|</span>
+          <a href="tel:+919898180810" class="hover:text-amber-300 text-slate-300 transition flex items-center gap-1 font-semibold">
+            <i class="fa-solid fa-phone text-xs text-amber-400"></i> +91 9898180810
+          </a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+
+  <!-- ==================== COMPULSORY FIELD VALIDATION ERROR MODAL ==================== -->
+  <div id="validationModal" style="display:none;" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border-4 border-red-500 overflow-hidden flex flex-col">
+      <div class="bg-red-600 text-white px-5 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2 font-black text-base">
+          <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-300"></i>
+          MANDATORY FIELDS REQUIRED (ફરજિયાત વિગતો ખૂટે છે)
+        </div>
+        <button onclick="FDApp.closeValidationModal()" class="text-white hover:text-red-200 font-bold text-lg">✕</button>
+      </div>
+      <div class="p-5 space-y-3">
+        <p class="text-xs text-slate-700 font-bold">
+          All fields marked with (<span class="text-red-600 font-black">*</span>) must be filled in English to Save or Print:
+        </p>
+        <div id="validationErrorsList" class="p-3.5 bg-red-50 rounded-xl border border-red-200 max-h-60 overflow-y-auto">
+          <!-- Errors rendered here -->
+        </div>
+      </div>
+      <div class="bg-slate-100 px-5 py-3 border-t flex justify-end">
+        <button onclick="FDApp.closeValidationModal()" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow">
+          UNDERSTOOD, FILL DETAILS (વિગતો ભરો)
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== OFFICIAL 4-PAGE PRINT & PDF TEMPLATE (EXACT SCAN REPLICA) ==================== -->
+  <div id="printContainer" class="hidden print:block print-only print-container" style="display: none;">
+    
+    <!-- ==================== PAGE 1: APPLICATION & DEPOSIT DETAILS ==================== -->
+    <div class="print-page">
+      
+      <!-- Bank Header with Dual Emblem (Page 1) -->
+      <div class="print-header-bar">
+        <div class="bank-logo-placeholder" style="width: 58px; height: 58px; shrink: 0;"></div>
+        <div style="text-align: center; flex: 1;">
+          <div style="font-size: 11pt; font-weight: 900; color: #002b99; text-transform: uppercase; letter-spacing: 0.3px;">
+            THE JUNAGADH COMMERCIAL CO-OPERATIVE BANK LTD.
+          </div>
+          <div style="font-size: 10pt; font-weight: 800; color: #002b99; margin-top: 1px;">
+            જૂનાગઢ કોમર્શિયલ કો-ઓપરેટિવ બેન્ક લિ.
+          </div>
+          <div style="font-size: 6.8pt; color: #334155; margin-top: 1px;">
+            Ho. Chandrakant Malaviya Smruti Bhavan, Choksi Bazar, Junagadh - 362 001. (Gujarat)<br>
+            Ph. 0285 - 2620496 | E-mail : jccb@jcombank.com | Website : www.jcombank.com
+          </div>
+        </div>
+        <div class="bank-logo-placeholder" style="width: 58px; height: 58px; shrink: 0;"></div>
+      </div>
+
+      <!-- Branch Name & Date Bar -->
+      <div style="display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-bottom: 1px solid #002b99; padding-bottom: 2px; margin-bottom: 2px;">
+        <div>Branch Name / શાખાનું નામ : <span data-print="branchName" class="print-val"></span></div>
+        <div>Date / તારીખ : <span data-print="formDate" class="print-val"></span></div>
+      </div>
+
+      <!-- SECTION 1 TITLE -->
+      <div class="print-section-title">
+        SECTION 1 : APPLICANT / DEPOSITOR DETAILS &nbsp;|&nbsp; વિભાગ ૧ : અરજદાર / થાપણદારની વિગત
+      </div>
+
+      <!-- SECTION 1 TABLE (APPLICANTS 1, 2, 3 MATRIX) -->
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th style="width: 4%;">No.</th>
+            <th style="width: 27%;">Particulars</th>
+            <th style="width: 23%;">First Applicant</th>
+            <th style="width: 23%;">Joint Applicant 1</th>
+            <th style="width: 23%;">Joint Applicant 2</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">1</td>
+            <td><strong>Customer ID / ગ્રાહક નં.</strong></td>
+            <td><span data-print="firstCustomerId" class="print-val"></span></td>
+            <td><span data-print="joint1CustomerId" class="print-val"></span></td>
+            <td><span data-print="joint2CustomerId" class="print-val"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">2</td>
+            <td><strong>Full Name (As per ID Proof) /<br>સંપૂર્ણ નામ (ઓળખ પ્રમાણ મુજબ)</strong></td>
+            <td><span data-print="firstFullName" class="print-val print-cust-name"></span></td>
+            <td><span data-print="joint1FullName" class="print-val print-cust-name"></span></td>
+            <td><span data-print="joint2FullName" class="print-val print-cust-name"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">3</td>
+            <td><strong>Residential Address /<br>રહેઠાણ સરનામું:</strong></td>
+            <td><span data-print="firstAddress" style="font-size: 7.2pt;"></span></td>
+            <td><span data-print="joint1Address" style="font-size: 7.2pt;"></span></td>
+            <td><span data-print="joint2Address" style="font-size: 7.2pt;"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">4</td>
+            <td><strong>PAN Number / PAN નંબર</strong></td>
+            <td><span data-print="firstPanNo" class="print-val print-pan-val"></span></td>
+            <td><span data-print="joint1PanNo" class="print-val print-pan-val"></span></td>
+            <td><span data-print="joint2PanNo" class="print-val print-pan-val"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">5</td>
+            <td><strong>Aadhaar Number / આધાર નં.</strong></td>
+            <td><span data-print="firstAadharNo" class="print-val print-aadhar-val"></span></td>
+            <td><span data-print="joint1AadharNo" class="print-val print-aadhar-val"></span></td>
+            <td><span data-print="joint2AadharNo" class="print-val print-aadhar-val"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">6</td>
+            <td><strong>Mobile No. / મોબાઇલ નં</strong></td>
+            <td><span data-print="firstMobileNo" class="print-val"></span></td>
+            <td><span data-print="joint1MobileNo" class="print-val"></span></td>
+            <td><span data-print="joint2MobileNo" class="print-val"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">7</td>
+            <td><strong>Email ID / ઇ-મેઇલ</strong></td>
+            <td><span data-print="firstEmailId" style="font-size: 6.8pt;"></span></td>
+            <td><span data-print="joint1EmailId" style="font-size: 6.8pt;"></span></td>
+            <td><span data-print="joint2EmailId" style="font-size: 6.8pt;"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">8</td>
+            <td><strong>Relationship / સંબંધ</strong></td>
+            <td><span data-print="firstRelation">SELF</span></td>
+            <td><span data-print="joint1Relation"></span></td>
+            <td><span data-print="joint2Relation"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">9</td>
+            <td><strong>Date of Birth / જન્મ તારીખ</strong></td>
+            <td><span data-print="firstDob" class="print-val"></span></td>
+            <td><span data-print="joint1Dob" class="print-val"></span></td>
+            <td><span data-print="joint2Dob" class="print-val"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">10</td>
+            <td><strong>Occupation / વ્યવસાય</strong></td>
+            <td><span data-print="firstOccupationCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+            <td><span data-print="joint1OccupationCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+            <td><span data-print="joint2OccupationCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">11</td>
+            <td><strong>Gender / જાતિ</strong></td>
+            <td><span data-print="firstGenderCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+            <td><span data-print="joint1GenderCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+            <td><span data-print="joint2GenderCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+          </tr>
+          <tr>
+            <td style="text-align: center; font-weight: bold;">12</td>
+            <td><strong>Annual Income / વાર્ષિક આવક (₹)</strong></td>
+            <td><span data-print="firstAnnualIncomeCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+            <td><span data-print="joint1AnnualIncomeCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+            <td><span data-print="joint2AnnualIncomeCheck" class="print-val" style="font-size: 8.5pt;"></span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Account Type & Mode of Operation Bar -->
+      <div style="border: 1px solid #1e293b; padding: 2px 4px; font-size: 7.5pt; display: flex; justify-content: space-between; align-items: center; margin-top: 1px;">
+        <div>
+          <strong>Type of Account:</strong> 
+          <span data-print="typeOfAccountCheck">[✓] Single &nbsp; [ ] Joint</span>
+        </div>
+        <div>
+          <strong>Mode of Operation:</strong> 
+          <span data-print="modeOfOperationCheck">[✓] Either or Survivor &nbsp; [ ] Jointly &nbsp; [ ] Other</span>
+        </div>
+      </div>
+
+      <!-- SECTION 2 TITLE -->
+      <div class="print-section-title">
+        SECTION 2 : TYPE OF DEPOSIT SCHEME &nbsp;|&nbsp; વિભાગ ૨ : ડિપોઝિટ યોજના
+      </div>
+
+      <table class="print-table" style="margin-bottom: 2px;">
+        <tr>
+          <td style="width: 25%; font-size: 7.5pt;" data-print="chk_dep_fd">[✓] Fixed Deposit (FD)</td>
+          <td style="width: 25%; font-size: 7.5pt;" data-print="chk_dep_reinvest">[ ] Reinvestment Deposit (RD)</td>
+          <td style="width: 25%; font-size: 7.5pt;" data-print="chk_dep_recur">[ ] Recurring Deposit (RD)</td>
+          <td style="width: 25%; font-size: 7.5pt;" data-print="chk_dep_senior">[ ] Senior Citizen Deposit</td>
+        </tr>
+      </table>
+
+      <!-- SECTION 3 TITLE -->
+      <div class="print-section-title">
+        SECTION 3 : DEPOSIT & INTEREST DETAILS &nbsp;|&nbsp; વિભાગ ૩ : ડિપોઝિટ અને વ્યાજ વિગત
+      </div>
+
+      <!-- DEPOSITS MATRIX TABLE (3 ROWS) -->
+      <table class="print-table" style="margin-bottom: 2px;">
+        <thead>
+          <tr>
+            <th style="width: 4%;">#</th>
+            <th style="width: 25%;">Deposit Amount (₹)</th>
+            <th style="width: 45%;">Amount in Words</th>
+            <th style="width: 16%;">Tenure (Y-M-D)</th>
+            <th style="width: 10%;">ROI (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="printDepositRow1">
+            <td style="text-align: center; font-weight: bold;">1</td>
+            <td style="font-weight: bold;"><span data-print="deposit1Amount" class="print-val"></span></td>
+            <td><span data-print="deposit1AmountWords" style="font-size: 7pt; font-weight: bold;"></span></td>
+            <td style="text-align: center;"><span data-print="deposit1TenurePrint" class="print-val"></span></td>
+            <td style="text-align: center; font-weight: bold;"><span data-print="deposit1Roi" class="print-val"></span>%</td>
+          </tr>
+          <tr id="printDepositRow2">
+            <td style="text-align: center; font-weight: bold;">2</td>
+            <td style="font-weight: bold;"><span data-print="deposit2Amount" class="print-val"></span></td>
+            <td><span data-print="deposit2AmountWords" style="font-size: 7pt; font-weight: bold;"></span></td>
+            <td style="text-align: center;"><span data-print="deposit2TenurePrint" class="print-val"></span></td>
+            <td style="text-align: center; font-weight: bold;"><span data-print="deposit2Roi" class="print-val"></span>%</td>
+          </tr>
+          <tr id="printDepositRow3">
+            <td style="text-align: center; font-weight: bold;">3</td>
+            <td style="font-weight: bold;"><span data-print="deposit3Amount" class="print-val"></span></td>
+            <td><span data-print="deposit3AmountWords" style="font-size: 7pt; font-weight: bold;"></span></td>
+            <td style="text-align: center;"><span data-print="deposit3TenurePrint" class="print-val"></span></td>
+            <td style="text-align: center; font-weight: bold;"><span data-print="deposit3Roi" class="print-val"></span>%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Interest Payment Mode & Credit Account -->
+      <table class="print-table">
+        <tr>
+          <td style="width: 25%; font-weight: bold;">Interest Payment Mode<br>વ્યાજ ચૂકવણી પ્રકાર</td>
+          <td style="width: 75%;">
+            <div data-print="interestPaymentModeCheck" style="font-size: 7.8pt;">
+              [ ] Monthly/માસિક &nbsp; [ ] Quarterly/ત્રિમાસિક &nbsp; [ ] Half Yearly/અર્ધ-વાર્ષિક &nbsp; [ ] Yearly/વાર્ષિક &nbsp; [✓] On Maturity/પાક્યે
+            </div>
+            <div style="margin-top: 5px; font-size: 8.5pt; display: flex; align-items: center; gap: 6px;">
+              <strong>Interest Credit A/c No. / વ્યાજ જમા ખાતા નં. :</strong>
+              <span data-print="interestCreditAccNo" class="print-val" style="font-family: 'Courier New', Courier, monospace !important; font-size: 10.5pt !important; font-weight: 900 !important; color: #001a66 !important; letter-spacing: 1.2px; background: #e0f2fe; padding: 1px 6px; border: 1px solid #7dd3fc; border-radius: 3px;"></span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-weight: bold;">Renewal Instructions<br>નવીનીકરણ સૂચના</td>
+          <td>
+            <div data-print="renewalInstructionCheck" style="font-size: 7.8pt;">
+              [✓] Auto Renewal (Principal+Interest) &nbsp; [ ] Auto Renewal (Principal only) &nbsp; [ ] Pay on Maturity
+            </div>
+          </td>
+        </tr>
+      </table>
+
+    </div>
+
+
+    <!-- ==================== PAGE 2: NOMINEE, TDS, PAYMENT, KYC & DECLARATION ==================== -->
+    <div class="print-page">
+      
+      <!-- Bank Header (Page 2) -->
+      <div class="print-header-bar">
+        <div class="bank-logo-placeholder" style="width: 54px; height: 54px; shrink: 0;"></div>
+        <div style="text-align: center; flex: 1;">
+          <div style="font-size: 11pt; font-weight: 900; color: #002b99; text-transform: uppercase;">
+            THE JUNAGADH COMMERCIAL CO-OPERATIVE BANK LTD.
+          </div>
+          <div style="font-size: 9.5pt; font-weight: 800; color: #002b99;">
+            જૂનાગઢ કોમર્શિયલ કો-ઓપરેટિવ બેન્ક લિ.
+          </div>
+          <div style="font-size: 6.8pt; color: #334155;">
+            Ho. Chandrakant Malaviya Smruti Bhavan, Choksi Bazar, Junagadh - 362 001. (Gujarat) | Ph. 0285 - 2620496
+          </div>
+        </div>
+        <div class="bank-logo-placeholder" style="width: 54px; height: 54px; shrink: 0;"></div>
+      </div>
+
+      <!-- SECTION 4: NOMINEE DETAILS (FORM DA-1) -->
+      <div class="print-section-title">
+        SECTION 4: NOMINEE DETAILS (As per Section 45ZA, BR Act 1949) &nbsp;|&nbsp; વિભાગ ૪ : વારસદાર ની વિગત
+      </div>
+
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th style="width: 32%;">Nominee Name / નોમિની નામ</th>
+            <th style="width: 15%;">Relationship</th>
+            <th style="width: 14%;">DOB</th>
+            <th style="width: 31%;">Address</th>
+            <th style="width: 8%;">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="printNomineeRow1">
+            <td>1. <span data-print="nominee1Name" class="print-val"></span></td>
+            <td><span data-print="nominee1Relation"></span></td>
+            <td><span data-print="nominee1Dob"></span></td>
+            <td><span data-print="nominee1Address" style="font-size: 7pt;"></span></td>
+            <td style="text-align: center;"><span data-print="nominee1Share" class="print-val"></span>%</td>
+          </tr>
+          <tr id="printNomineeRow2">
+            <td>2. <span data-print="nominee2Name" class="print-val"></span></td>
+            <td><span data-print="nominee2Relation"></span></td>
+            <td><span data-print="nominee2Dob"></span></td>
+            <td><span data-print="nominee2Address" style="font-size: 7pt;"></span></td>
+            <td style="text-align: center;"><span data-print="nominee2Share" class="print-val"></span>%</td>
+          </tr>
+          <tr id="printNomineeRow3">
+            <td>3. <span data-print="nominee3Name" class="print-val"></span></td>
+            <td><span data-print="nominee3Relation"></span></td>
+            <td><span data-print="nominee3Dob"></span></td>
+            <td><span data-print="nominee3Address" style="font-size: 7pt;"></span></td>
+            <td style="text-align: center;"><span data-print="nominee3Share" class="print-val"></span>%</td>
+          </tr>
+          <tr id="printNomineeRow4">
+            <td>4. <span data-print="nominee4Name" class="print-val"></span></td>
+            <td><span data-print="nominee4Relation"></span></td>
+            <td><span data-print="nominee4Dob"></span></td>
+            <td><span data-print="nominee4Address" style="font-size: 7pt;"></span></td>
+            <td style="text-align: center;"><span data-print="nominee4Share" class="print-val"></span>%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Guardian Details -->
+      <div style="border: 1px solid #1e293b; padding: 4px 6px; font-size: 7.8pt; display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+        <div><strong>If Minor : Guardian Name / સગીર હોય તો વાલીનું નામ :</strong> <span data-print="guardianName" class="print-val"></span></div>
+        <div><strong>Relationship / સંબંધ :</strong> <span data-print="relationWithGuardian" class="print-val"></span></div>
+      </div>
+
+      <!-- SECTION 5: TDS DECLARATION / FORM 121 -->
+      <div class="print-section-title">
+        SECTION 5 : TDS DECLARATION / FORM 121 &nbsp;|&nbsp; વિભાગ ૫ : TDS ઘોષણા / ફોર્મ 121
+      </div>
+
+      <div style="border: 1px solid #1e293b; padding: 5px 8px; font-size: 7.8pt; line-height: 1.4; background: #ffffff;">
+        <!-- Option 1: Below 60 -->
+        <div id="printTdsBelow60Row" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 5px;">
+          <div style="flex-shrink: 0; padding-top: 1px;" data-print="chk_tds_below60_tick">[ ]</div>
+          <div style="flex: 1;">
+            <strong>I submit Form 121 (Below 60 yrs) :</strong> My estimated total income is below the taxable limit. TDS should not be deducted.<br>
+            <span style="color: #1e293b;">હું ફોર્મ 121 (60 વર્ષ નીચે) રજૂ કરું છું : મારી અંદાજિત કુલ આવક કરપાત્ર મર્યાદા કરતા ઓછી છે. તેથી TDS કાપવો નહિ.</span>
+          </div>
+        </div>
+
+        <!-- Option 2: Above 60 -->
+        <div id="printTdsAbove60Row" style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 5px; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
+          <div style="flex-shrink: 0; padding-top: 1px;" data-print="chk_tds_above60_tick">[ ]</div>
+          <div style="flex: 1;">
+            <strong>I submit Form 121 (Senior Citizen above 60 yrs) :</strong> Tax on my estimated total income of current year is NIL.<br>
+            <span style="color: #1e293b;">હું ફોર્મ 121 (60+ વર્ષ) રજૂ કરું છું : ચાલુ વર્ષ માટે મારી અંદાજિત કુલ આવક પર ટેક્સ શૂન્ય છે. તેથી TDS કાપવો નહિ.</span>
+          </div>
+        </div>
+
+        <!-- Option 3: TDS Applicable -->
+        <div id="printTdsApplicableRow" style="display: flex; align-items: flex-start; gap: 8px; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
+          <div style="flex-shrink: 0; padding-top: 1px;" data-print="chk_tds_applicable_tick">[ ]</div>
+          <div style="flex: 1;">
+            <strong>TDS to be deducted as applicable / TDS લાગુ નિયમ મુજબ કાપવો.</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 6: PAYMENT DETAILS / SOURCE OF FUNDS -->
+      <div class="print-section-title">
+        SECTION 6 : PAYMENT DETAILS / SOURCE OF FUNDS &nbsp;|&nbsp; વિભાગ ૬ : ચૂકવણી વિગત / ભંડોળ સ્ત્રોત
+      </div>
+
+      <table class="print-table">
+        <tr>
+          <td style="width: 50%;">
+            <strong>Mode of Payment / ચૂકવણી મોડ :</strong><br>
+            <span data-print="paymentModeCheck" style="font-size: 7.5pt;">
+              [ ] Cash/રોકડ &nbsp; [ ] Cheque/ચેક &nbsp; [ ] NEFT/RTGS<br>
+              [ ] Transfer from A/c : <span data-print="transferAccountNo" class="print-val"></span>
+            </span>
+          </td>
+          <td style="width: 50%;">
+            <strong>Source of Funds / ભંડોળ સ્ત્રોત :</strong><br>
+            <span data-print="sourceOfFundsCheck" style="font-size: 7.5pt;">
+              [ ] Salary/Pension &nbsp; [ ] Business Income &nbsp; [ ] Savings<br>
+              [ ] Inheritance &nbsp; [ ] Other : <span data-print="sourceOfFundsOther" class="print-val"></span>
+            </span>
+          </td>
+        </tr>
+      </table>
+
+      <!-- SECTION 7: KYC DOCUMENTS SUBMITTED -->
+      <div class="print-section-title">
+        SECTION 7 : KYC DOCUMENTS SUBMITTED &nbsp;|&nbsp; વિભાગ ૭ : KYC દસ્તાવેજો
+      </div>
+
+      <table class="print-table">
+        <tr>
+          <td style="width: 50%;">
+            <strong>Identity Proof / ઓળખ પ્રમાણ:</strong><br>
+            <span data-print="idProofCheck" style="font-size: 7.5pt;">
+              [ ] Aadhar Card &nbsp; [ ] PAN Card &nbsp; [ ] Voter ID<br>
+              [ ] Passport &nbsp; [ ] Driving Licence
+            </span>
+          </td>
+          <td style="width: 50%;">
+            <strong>Address Proof / સરનામા પ્રમાણ:</strong><br>
+            <span data-print="addrProofCheck" style="font-size: 7.5pt;">
+              [ ] Aadhar Card &nbsp; [ ] Passport<br>
+              [ ] Utility Bill (&lt; 3 Months) &nbsp; [ ] Bank Statement
+            </span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="font-size: 7.5pt;">
+            <span data-print="additionalProofCheck">[ ] Recent Passport Size Photographs / તાજેતરનો પાસપોર્ટ સાઇઝ ફોટો &nbsp;&nbsp; [ ] Senior Citizen Certificate / વરિષ્ઠ નાગરિક પુરાવો</span>
+          </td>
+        </tr>
+      </table>
+
+      <!-- SECTION 8: DECLARATION BY DEPOSITOR -->
+      <div class="print-section-title">
+        SECTION 8 : DECLARATION BY DEPOSITOR &nbsp;|&nbsp; વિભાગ ૮ : ઘોષણા
+      </div>
+
+      <div style="border: 1px solid #1e293b; padding: 3px 6px; font-size: 7pt; line-line-height: 1.25; background: #fafafa;">
+        <div style="font-weight: bold; margin-bottom: 2px;">I/We hereby declare that:</div>
+        <div>1. The information provided in this form is true, correct and complete to the best of my/our knowledge and belief.</div>
+        <div>2. I/We have read and understood the terms & conditions of the Fixed Deposit Scheme of the bank.</div>
+        <div>3. I/We agree that in case of premature withdrawal, applicable penalty/charges as per bank norms and RBI guidelines will be deducted.</div>
+        <div>4. I/We authorize the bank to deduct TDS as per applicable Income Tax Act provisions.</div>
+        <div>5. I/We have not been declared insolvent and this deposit does not violate any court order/legal restriction.</div>
+        <div style="margin-top: 2px; font-weight: bold;">અમે/હું ઘોષણા કરીએ/કરું છું:</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+          <div>૧. આ ફોર્મમાં આપેલ તમામ માહિતી સત્ય, સચોટ અને સંપૂર્ણ છે.</div>
+          <div>૨. અમે/હું બેન્કની ફિક્સ ડિપોઝિટ યોજનાની શરતો વાંચી અને સ્વીકારી છે.</div>
+          <div>૩. મુદત પહેલાં ઉપાડ પર RBI/બેન્ક નિયમ અનુસાર દંડ/ચાર્જ કપાત કરવાનું સ્વીકારીએ છીએ.</div>
+          <div>૪. TDS કાપવા માટે બેન્કને અધિકૃત કરીએ છીએ.</div>
+        </div>
+      </div>
+
+      <!-- Applicant Signature Boxes -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 25px; margin-bottom: 5px;">
+        <!-- First Applicant Signature Box -->
+        <div style="border: 1.5px solid #1e293b; border-radius: 4px; padding: 6px 8px; text-align: center; background: #ffffff;">
+          <div style="font-size: 7.5pt; font-weight: bold; color: #002b99;">First Applicant Signature<br><span style="font-size: 6.8pt; color: #475569;">(મુખ્ય અરજદારની સહી)</span></div>
+          <div style="height: 38px;"></div>
+          <div style="border-top: 1px dashed #64748b; padding-top: 3px;">
+            <span data-print="firstFullName" class="print-val print-cust-name" style="font-size: 8.5pt;"></span>
+          </div>
+        </div>
+
+        <!-- Joint Applicant 1 Signature Box -->
+        <div id="printJoint1SignBox" style="border: 1.5px solid #1e293b; border-radius: 4px; padding: 6px 8px; text-align: center; background: #ffffff;">
+          <div style="font-size: 7.5pt; font-weight: bold; color: #002b99;">Joint Applicant 1 Signature<br><span style="font-size: 6.8pt; color: #475569;">(સંયુક્ત અરજદાર ૧ ની સહી)</span></div>
+          <div style="height: 38px;"></div>
+          <div style="border-top: 1px dashed #64748b; padding-top: 3px;">
+            <span data-print="joint1FullName" class="print-val print-cust-name" style="font-size: 8.5pt;"></span>
+          </div>
+        </div>
+
+        <!-- Joint Applicant 2 Signature Box -->
+        <div id="printJoint2SignBox" style="border: 1.5px solid #1e293b; border-radius: 4px; padding: 6px 8px; text-align: center; background: #ffffff;">
+          <div style="font-size: 7.5pt; font-weight: bold; color: #002b99;">Joint Applicant 2 Signature<br><span style="font-size: 6.8pt; color: #475569;">(સંયુક્ત અરજદાર ૨ ની સહી)</span></div>
+          <div style="height: 38px;"></div>
+          <div style="border-top: 1px dashed #64748b; padding-top: 3px;">
+            <span data-print="joint2FullName" class="print-val print-cust-name" style="font-size: 8.5pt;"></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ==================== PAGE 3: BANK USE BOX, NOTES & TERMS AND CONDITIONS ==================== -->
+    <div class="print-page">
+      
+      <!-- Bank Header (Page 3) -->
+      <div class="print-header-bar" style="margin-bottom: 2px;">
+        <div class="bank-logo-placeholder" style="width: 50px; height: 50px; shrink: 0;"></div>
+        <div style="text-align: center; flex: 1;">
+          <div style="font-size: 11pt; font-weight: 900; color: #002b99; text-transform: uppercase;">
+            THE JUNAGADH COMMERCIAL CO-OPERATIVE BANK LTD.
+          </div>
+          <div style="font-size: 10pt; font-weight: 800; color: #002b99;">
+            જૂનાગઢ કોમર્શિયલ કો-ઓપરેટિવ બેન્ક લિ.
+          </div>
+          <div style="font-size: 6.8pt; color: #334155;">
+            Ho. Chandrakant Malaviya Smruti Bhavan, Choksi Bazar, Junagadh - 362 001. (Gujarat) | Website : www.jcombank.com
+          </div>
+        </div>
+        <div class="bank-logo-placeholder" style="width: 50px; height: 50px; shrink: 0;"></div>
+      </div>
+
+      <!-- FOR BANK USE ONLY BOX -->
+      <div class="print-section-title" style="margin-top: 1px;">
+        FOR BANK USE ONLY &nbsp;|&nbsp; બેન્ક ઉપયોગ માટે
+      </div>
+
+      <table class="print-table" style="margin-bottom: 5px; width: 100%; border: 1.5px solid #1e293b; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="width: 32%; padding: 4px; border: 1.5px solid #1e293b; text-align: center;">Entered by / દ્વારા:</th>
+            <th style="width: 32%; padding: 4px; border: 1.5px solid #1e293b; text-align: center;">Authorised by / અધિકૃત:</th>
+            <th style="width: 36%; padding: 4px; border: 1.5px solid #1e293b; text-align: center;">Branch Manager Seal & Sign / શાખા શિલ :</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="height: 85px;">
+            <!-- Column 1: Entered By -->
+            <td style="width: 32%; border: 1.5px solid #1e293b; padding: 6px 8px; vertical-align: top; position: relative;">
+              <div style="font-size: 7.2pt; color: #64748b;">(Signature above name)</div>
+              <div style="margin-top: 38px; border-top: 1px dashed #64748b; padding-top: 3px; text-align: left;">
+                <span data-print="enteredBy" class="print-val print-cust-name" style="font-size: 8.8pt;"></span>
+              </div>
+            </td>
+
+            <!-- Column 2: Authorised By -->
+            <td style="width: 32%; border: 1.5px solid #1e293b; padding: 6px 8px; vertical-align: top; position: relative;">
+              <div style="font-size: 7.2pt; color: #64748b;">(Signature above name)</div>
+              <div style="margin-top: 38px; border-top: 1px dashed #64748b; padding-top: 3px; text-align: left;">
+                <span data-print="authorizedBy" class="print-val print-cust-name" style="font-size: 8.8pt;"></span>
+              </div>
+            </td>
+
+            <!-- Column 3: Branch Manager Seal & Sign -->
+            <td style="width: 36%; border: 1.5px solid #1e293b; padding: 6px 8px; vertical-align: bottom; text-align: center;">
+              <div style="margin-top: 45px; font-size: 7.5pt; color: #475569; font-weight: bold;">
+                Branch Seal & Signature
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- IMPORTANT NOTES BOX -->
+      <div style="background: #f0f9ff; border: 2px solid #0284c7; border-radius: 4px; padding: 6px 12px; font-size: 8.2pt; line-height: 1.45; text-align: left; margin-top: 2px; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        <div style="color: #0369a1; font-weight: 900; font-size: 9pt; text-align: center; margin-bottom: 4px; border-bottom: 1px solid #bae6fd; padding-bottom: 2px;">
+          IMPORTANT NOTES / મહત્વપૂર્ણ નોંધ
+        </div>
+        <ul class="print-gu-list" style="color: #0c4a6e; padding-left: 18px; margin: 0; space-y-1;">
+          <li style="margin-bottom: 3px;"><strong>Premature withdrawal is subject to penalty</strong> as per RBI Master Direction on Interest Rate on Deposits | <strong>સમય પૂર્વ ઉપાડ RBI નિર્દેશ અનુસાર દંડને પાત્ર છે.</strong></li>
+          <li style="margin-bottom: 3px;"><strong>Interest accrued is subject to TDS</strong> as per Income Tax Act | <strong>TDS આવકવેરા અધિનિયમ અનુસાર કપાત થશે.</strong> &nbsp;•&nbsp; <strong>Sr. Citizen: Extra 0.50% p.a.</strong> interest as per bank policy | <strong>વરિષ્ઠ નાગરિક: બેન્ક નીતિ અનુસાર વાર્ષિક વધારાનું 0.50% વ્યાજ.</strong></li>
+          <li style="margin-bottom: 0;"><strong>Deposits are insured up to ₹ 5,00,000 under DICGC</strong> | <strong>બેન્કની તમામ થાપણો DICGC અંતર્ગત ₹ ૫,૦૦,૦૦૦ સુધી વીમાપાત્ર છે.</strong></li>
+        </ul>
+      </div>
+
+      <!-- TERMS & CONDITIONS (T&C) -->
+      <div style="font-size: 8.5pt; font-weight: 900; color: #002b99; text-align: center; border-bottom: 1.5px solid #002b99; padding: 2px 0; margin-top: 2px;">
+        Terms & Conditions (T&C) &nbsp;–&nbsp; નિયમો અને શરતો
+      </div>
+
+      <div class="print-gu-text" style="margin-top: 2px; font-size: 8.2pt;">
+        બેંક વર્ષમાં ખરેખર કેટલા દિવસો છે તેના આધારે વ્યાજની ગણતરી કરે છે. જો ડિપોઝિટ લીપ વર્ષમાં અથવા નોન-લીપ વર્ષમાં કરાયેલી હોય, તો વ્યાજની ગણતરી દિવસોની સંખ્યાના આધારે કરવામાં આવે છે. લીપ વર્ષમાં 366 દિવસ અને નોન-લીપ વર્ષમાં 365 દિવસ.
+      </div>
+
+      <!-- TAX DEDUCTION AT SOURCE (TDS) RULES -->
+      <div style="font-size: 8.5pt; font-weight: 900; color: #002b99; text-align: center; border-bottom: 1.5px solid #002b99; padding: 2px 0; margin-top: 4px;">
+        Tax Deduction at Source (TDS) &nbsp;–&nbsp; આવક પર ટેક્સ કપાત (TDS)
+      </div>
+
+      <ul class="print-gu-list" style="margin-top: 3px; font-size: 8.2pt; line-height: 1.45; padding-left: 18px;">
+        <li style="margin-bottom: 4px;">
+          કલમ 206AA મુજબ, દરેક વ્યક્તિ જે આવક મેળવે છે જેના પર TDS કપાતપાત્ર છે તેણે પોતાનો PAN રજૂ કરવો પડશે, PAN રજૂ ના થયેલી થાપણોના કિસ્સામાં 20% ના દરે TDS કાપવામાં આવશે. કૃપા કરીને નોંધ લો કે CBDT પરિપત્ર નંબર: 03/11 મુજબ PAN ન હોય તો, ફોર્મ 121 અને અન્ય મુક્તિ પ્રમાણપત્રો સબમિટ કરવામાં આવે તો પણ અમાન્ય રહેશે અને ઊંચા દરે TDS લાગુ પડશે.
+        </li>
+        <li style="margin-bottom: 4px;">
+          દરેક વ્યક્તિ જેને પરમેનન્ટ એકાઉન્ટ નંબર (PAN) ફાળવવામાં આવ્યો છે અને આધાર નંબર મેળવવા માટે પાત્ર છે, તેમણે આવકવેરા કાયદા 1961 ની કલમ 139 AA ની જોગવાઈઓ અનુસાર તેમના PAN ને આધાર સાથે લિંક કરવું આવશ્યક છે. PAN ને આધાર સાથે લિંક ન કરવાથી PAN "નિષ્ક્રિય" થઈ જશે અને CBDT દ્વારા સૂચિત તારીખ પછી TDS દરમાં વધારો થઈ શકે છે.
+        </li>
+        <li style="margin-bottom: 4px;">
+          ૧૯૬૧ના આઇટી એક્ટ અને આઇટી નિયમો અનુસાર, ટીડીએસ દર સમયાંતરે લાગુ પડે છે. ટીડીએસ માટે લાગુ પડતા વર્તમાન દરો બેંકની વેબસાઇટ પર પ્રદર્શિત કરવામાં આવશે. જ્યારે ગ્રાહક દીઠ, બધી શાખાઓમાં, એફડી અને આરડી પર ચૂકવવાપાત્ર અથવા કંપાઉન્ડીંગ થયેલ વ્યાજ સહિત, નાણાકીય વર્ષમાં રૂ. 50,000/- (વરિષ્ઠ નાગરિક માટે રૂ. 1,00,000/-) થી વધુ હોય ત્યારે ટીડીએસ વસૂલવામાં આવે છે. વધુમાં, જો TDS લાગુ પડતું હશે તો નાણાકીય વર્ષના અંતે ડિપોઝિટ બેલેન્સ (પ્રિન્સિપલ+વ્યાજ) ની રકમ ઉપર ટીડીએસ વસૂલવામાં આવશે. જો ગ્રાહક ને CASA એકાઉન્ટ માંથી ટીડીએસ વસૂલવા ઇચ્છતો હશે તો જે તે શાખામાં અરજી કરવાની રહેશે.
+        </li>
+        <li style="margin-bottom: 4px;">
+          રીન્યુ કરાયેલી થાપણો માટે, રીન્યુ રકમમાં ડિપોઝિટ ની રકમ વત્તા વ્યાજ તથા TDS ની રકમ બાદ ની બેલેન્સ ની રકમ ને ચક્રવર્તી વ્યાજ ની ગણત્રિ કરવામાં ધ્યાન માં લેવામાં આવશે. જેથી TDS કપાત થયેલી થાપણો ની મેચ્યોરિટી ની રકમ માં ફેરફાર આવી શકશે.
+        </li>
+        <li style="margin-bottom: 4px;">
+          IT કાયદાની કલમ 139A(5A) અને જોગવાઈઓ હેઠળ કાપવામાં આવેલી કોઈપણ ની રકમ (TDS) માટે ગ્રાહકે, બેન્ક ને પોતાનો PAN ન. આપવો પડશે.
+        </li>
+        <li style="margin-bottom: 4px;">
+          જો ડિપોઝિટર દ્વારા બેંકને નિર્ધારિત ફોર્મેટ (લાગુ પડતું ફોર્મ 121) માં લેખિતમાં એક રજૂ કર્યે થી કરપાત્ર વ્યાજમાંથી કોઈ કર TDS કપાત કરવામાં આવશે નહી.
+        </li>
+        <li style="margin-bottom: 4px;">
+          ડિપોઝિટ ની રકમ 50000 કે તે થી વધુ હોય અથવા નાણાકીય વર્ષ દરમિયાન ગ્રાહક નં. (Customer ID) માં issue કરવામાં આવેલ (FD/RDs) સહિત ની કુલ રકમ 5 લાખ રૂપિયાથી વધુ હોય તો PAN/ફોર્મ 60 ફરજિયાત છે.
+        </li>
+        <li style="margin-bottom: 0;">
+          PAN/ફોર્મ 60 ના હોવા ના કિસ્સા માં : (a) મેચ્યોરિટી તારીખે FD/RD રિન્યુ કરવામાં આવશે નહીં અને મેચ્યોરિટી રકમ લિંક કરેલા ખાતામાં જમા કરવામાં આવશે અથવા બેંકના રેકોર્ડમાં મુજબ ના સરનામાં પર ડિમાન્ડ ડ્રાફ્ટ મોકલવામાં આવશે.
+        </li>
+      </ul>
+
+    </div>
+
+    <!-- ==================== PAGE 4: FORM 121 LIMITS, POLICIES & CALCULATION RULES ==================== -->
+    <div class="print-page">
+      
+      <!-- Bank Header (Page 4) -->
+      <div class="print-header-bar">
+        <div class="bank-logo-placeholder" style="width: 50px; height: 50px; shrink: 0;"></div>
+        <div style="text-align: center; flex: 1;">
+          <div style="font-size: 10.5pt; font-weight: 900; color: #002b99; text-transform: uppercase;">
+            THE JUNAGADH COMMERCIAL CO-OPERATIVE BANK LTD.
+          </div>
+          <div style="font-size: 9.5pt; font-weight: 800; color: #002b99;">
+            જૂનાગઢ કોમર્શિયલ કો-ઓપરેટિવ બેન્ક લિ.
+          </div>
+          <div style="font-size: 6.5pt; color: #334155;">
+            Ho. Chandrakant Malaviya Smruti Bhavan, Choksi Bazar, Junagadh - 362 001. (Gujarat) | Website : www.jcombank.com
+          </div>
+        </div>
+        <div class="bank-logo-placeholder" style="width: 50px; height: 50px; shrink: 0;"></div>
+      </div>
+
+      <!-- FORM 121 SUBMISSION GUIDELINES -->
+      <div style="font-size: 7.5pt; font-weight: bold; color: #0f172a; margin-top: 2px;">
+        જે નાણાકીય વર્ષ દરમિયાન ફોર્મ 121 સબમિટ કરવામાં આવે છે તે વર્ષ દરમ્યાન TDS વસૂલવામાં ન આવે તે માટે મહત્તમ મર્યાદા નીચે મુજબ છે:
+      </div>
+
+      <ul class="print-gu-list" style="margin-top: 2px;">
+        <li>૬૦ વર્ષથી ઓછી ઉંમરના ભારતના રહેવાસીઓ અથવા વ્યક્તિ (કંપની કે પેઢી ન હોય) માટે <strong>₹ ૪,૦૦,૦૦૦/-</strong> સુધી. નાણાકીય વર્ષ દરમિયાન કોઈપણ સમયે ૬૦ વર્ષથી વધુ ઉંમરના ભારતના વરિષ્ઠ નાગરિક રહેવાસીઓ માટે <strong>₹ ૧૨,૦૦,૦૦૦/-</strong> સુધી.</li>
+        <li>ફોર્મ ૧૨૧ ની નકલ બેંકમાં જમા કરાવવાની રહેશે. એક નકલ બેંક રેકોર્ડ માટે અને બીજી નકલ ગ્રાહકને શાખા સીલ સાથે સ્વીકૃતિ તરીકે પરત કરવાની રહેશે. દરેક નવા નાણાકીય વર્ષની શરૂઆતમાં એક નવું ફોર્મ ૧૨૧ સબમિટ કરવાનું રહેશે. જો ફોર્મ ૧૨૧ વ્યાજ ચૂકવણી/જમા થયા પછી સબમિટ કરવામાં આવશે, તો ફોર્મ ૧૨૧ વ્યાજ ચૂકવણી/ક્રેડિટની તારીખના પછીના દિવસથી અસરકારક રહેશે.</li>
+        <li>ફોર્મ ૧૨૧ ના વિલંબ અથવા સબમિટ ન થવાથી ઉદ્ભવતા કોઈપણ પરિણામો માટે બેંક જવાબદાર રહેશે નહીં. અમે તમને વધુ સારી સેવા આપી શકીએ તે માટે કૃપા કરીને નવા નાણાકીય વર્ષના એપ્રિલ માસ દરમ્યાન ફોર્મ ૧૨૧ સબમિટ કરો.</li>
+      </ul>
+
+      <div style="font-size: 7pt; font-weight: bold; color: #475569; margin: 2px 0 3px 0;">
+        નોંધ: ઉપરોક્ત માર્ગદર્શિકા ભારત સરકારના નાણા મંત્રાલયના સમયાંતરે પ્રવર્તતા આવકવેરા નિયમો/નિર્દેશો અનુસાર બદલાઈ શકે છે.
+      </div>
+
+      <!-- AUTO RENEWAL POLICY -->
+      <div style="font-size: 8pt; font-weight: 900; color: #002b99; border-bottom: 1px solid #002b99; padding-bottom: 1px;">
+        ઓટો-રિન્યુ (Auto Renewal)
+      </div>
+      <div class="print-gu-text" style="margin-top: 1.5px;">
+        ઓટો-રિન્યુ ડિપોઝિટ પ્રવર્તમાન વ્યાજ દરે મૂળ ડિપોઝિટ જેટલા જ સમયગાળા માટે ઓટો-રિન્યુ કરવામાં આવશે. ડિપોઝિટ ના સમયગાળા માં ફેરફાર માટે ની સૂચના મેચ્યોરિટી તારીખ પછીના 7 દિવસની અંદર બદલી શકાશે.
+      </div>
+
+      <!-- PREMATURE ENCASHMENT -->
+      <div style="font-size: 8pt; font-weight: 900; color: #002b99; border-bottom: 1px solid #002b99; padding-bottom: 1px; margin-top: 3px;">
+        પ્રિમેચ્યોર એન્કેશમેન્ટ (Premature Encashment)
+      </div>
+      <ul class="print-gu-list" style="margin-top: 1.5px;">
+        <li>સંયુક્ત ખાતાધારકોમાંથી કોઈ એકના મૃત્યુના કિસ્સામાં, ડિપોઝિટની રકમનો અધિકાર આપમેળે હયાત સંયુક્ત ખાતાધારકને મળતો નથી, સિવાય કે ત્યાં સર્વાઇવરશિપ કલમ હોય.</li>
+        <li>સર્વાઇવરશિપ કલમ ધરાવતી સંયુક્ત ફિક્સ ડિપોઝિટના કિસ્સામાં, એક અથવા વધુ જોઈન્ટ ડિપોઝિટરના કિસ્સામાં, વિનંતી પર, બેંકને ફિક્સ્ડ ડિપોઝિટની રકમ સર્વાઈવરને સમાન રીતે સમય પહેલા ચૂકવીને ડિસ્ચાર્જ કરવામાં આવશે.</li>
+        <li>મુદત પહેલાં રોકડ રકમ ચૂકવવાના કિસ્સામાં, ડિપોઝિટ પર સહી કરનારા બધાએ રોકડ રકમ ચૂકવવાની સૂચના પર સહી કરવી આવશ્યક છે. બધી મુદત પહેલા રોકડ રકમ ચૂકવવાનું કામ રિઝર્વ બેંક ઓફ ઇન્ડિયાના નિયમો જે રોકડ રકમ ચૂકવવાના સમયે લાગુ હશે તે મુજબ થશે.</li>
+        <li>આઇટી કાયદા મુજબ, જો ચુકવણીની તારીખે ડિપોઝિટની પાકતી રકમ, વ્યક્તિ દ્વારા પોતાના નામે અથવા કોઈપણ વ્યક્તિ સાથે સંયુક્ત રીતે રાખેલી થાપણ/(ઓ) ની કુલ રકમ ચૂકવવાપાત્ર વ્યાજ સાથે <strong>₹ ૨૦,૦૦૦/-</strong> જેટલી અથવા તેનાથી વધુ હોય, તો રકમ થાપણ ધારકના નામે કાઢવામાં આવેલા બેંક ડ્રાફ્ટ દ્વારા અથવા થાપણ ધારકના બચત/ચાલુ ખાતામાં ક્રેડિટ કરીને ચૂકવવામાં આવશે.</li>
+        <li>ડિપોઝિટ મુદત પહેલાં ઉપાડ કરવા પર ઉપર જણાવ્યા મુજબ 1% દંડ ગ્રાહકના મૃત્યુ સિવાયના કિસ્સામાં લાગુ પડે છે.</li>
+        <li>જો ડિપોઝિટ ધારકનું મેચ્યોરિટી તારીખ પહેલાં મૃત્યુ થાય છે, તો કરારની શરતો અનુસાર ડિપોઝિટની સમય પહેલા ચૂકવવાની મંજૂરી આપવામાં આવશે, જે જરૂરી ચકાસણી અને ડિપોઝિટરના મૃત્યુના પુરાવા રજૂ કરવાને આધીન રહેશે. આવા ઉપાડ પર કોઈપણ દંડનિય વ્યાજ ઉધારવામાં આવશે નહીં.</li>
+      </ul>
+
+      <!-- DICGC INSURANCE & HIGHLIGHTS -->
+      <div style="font-size: 7.5pt; font-weight: bold; color: #002b99; margin-top: 3px;">
+        આપણો માટે વીમા કવર: બેંકમાં રહેલી થાપણોનો DICGC દ્વારા પ્રતિ થાપણદાર <strong>રૂ. ૫ લાખ</strong> (ડિપોઝિટ+વ્યાજ) ની રકમ માટે વીમો લેવામાં આવે છે.
+      </div>
+
+      <div style="font-size: 8pt; font-weight: 900; color: #002b99; border-bottom: 1px solid #002b99; padding-bottom: 1px; margin-top: 3px;">
+        મહત્વપૂર્ણ મુદ્દાઓ:
+      </div>
+      <ul class="print-gu-list" style="margin-top: 1.5px;">
+        <li>વરિષ્ઠ નાગરિકો (૫૮ વર્ષ અને તેથી વધુ) જે નિવાસી ભારતીય છે તેઓ વરિષ્ઠ નાગરિક દરો માટે પાત્ર છે.</li>
+        <li>બેંકના પોતાના સ્ટાફ અથવા વરિષ્ઠ નાગરિક હોવાના કારણે થાપણો પર વધારાના વ્યાજ દરનો લાભ મળવા પાત્ર છે.</li>
+        <li>જો તમારી ફિક્સ્ડ ડિપોઝિટ નોમિનેશન વિના બુક કરવામાં આવી હોય, તો કૃપા કરીને તેને અપડેટ કરવા માટે શાખાની મુલાકાત લો.</li>
+        <li>ડિપોઝિટ "નો ઓટો રિન્યૂ" તરીકે મેચ્યુરિટી સૂચના સાથે બુક કરવામાં આવશે.</li>
+        <li>ઉપાડ ન કરી શકાય તેવી ડિપોઝિટ ફક્ત 15 લાખ અને તેથી વધુ રકમ માટે જ ઓફર કરવામાં આવે છે.</li>
+        <li>ઉપાડ ન કરી શકાય તેવી ડિપોઝિટને ઓવરડ્રાફ્ટ સુવિધા, લેટર ઓફ ક્રેડિટ/અન્ય કોઈપણ માર્જિનની બેંક ગેરંટી વગેરે જેવી સુરક્ષા કોલેટરલ તરીકે ગીરવે મૂકી શકાતી નથી.</li>
+      </ul>
+
+      <!-- INTEREST CALCULATION GUIDELINES -->
+      <div style="font-size: 8pt; font-weight: 900; color: #002b99; border-bottom: 1px solid #002b99; padding-bottom: 1px; margin-top: 3px;">
+        જ્યારે તમે બેંકમાં ફિક્સ્ડ ડિપોઝિટ ખોલો છો ત્યારે ટર્મ ડિપોઝિટ પર વ્યાજ નીચે મુજબ ગણવામાં આવે છે:
+      </div>
+      <ul class="print-gu-list" style="margin-top: 1.5px;">
+        <li>૧૨ મહિનાથી વધુ સમયગાળાની થાપણો માટે ત્રિમાસિક ધોરણે અને 12 મહિનાથી ઓછા સમયગાળાની થાપણો માટે સાદું વ્યાજ ચૂકવવામાં આવશે.</li>
+        <li>રી-ઇન્વેસ્ટમેન્ટ થાપણો ઉપર વ્યાજની ગણતરી દર ક્વાર્ટરમાં કરવામાં આવે છે, અને તેને મુદલમાં ઉમેરવામાં આવે છે જેથી પાછલા ક્વાર્ટરમાં મળેલા વ્યાજ પર પણ વ્યાજ ચૂકવવામાં આવે.</li>
+        <li>જો લાગુ પડતા નિયમો અને શરતો મુજબ FD બુક/રિન્યૂ ન થાય, તો બેંક સાચી વિગતો સાથે તેને ફરીથી બુક કરવાનો અધિકાર અનામત રાખે છે.</li>
+        <li>નિવાસી અને બિન-નિવાસી રૂપિયાની થાપણો માટે - રાઉન્ડિંગ ઓફ RBI માર્ગદર્શિકા, RBI/2011-12/56 DBOD નં. લેગ.BC. 18/09.07.006/2011-12 ના આધારે કરવામાં આવે છે. ડિપોઝિટ પર વ્યાજની ચૂકવણી/એડવાન્સિસ પર વ્યાજ વસૂલાત સહિત તમામ વ્યવહારો નજીકના રૂપિયામાં રાઉન્ડ ઓફ કરવામાં આવશે એટલે કે, 50 પૈસા અને તેથી વધુના અપૂર્ણાંકને આગામી ઊંચા રૂપિયામાં રાઉન્ડ ઓફ કરવામાં આવશે અને 50 પૈસાથી ઓછાના અપૂર્ણાંકને અવગણવામાં આવશે.</li>
+      </ul>
+
+    </div>
+
+  </div>
+
+  <!-- Supabase & PostgreSQL Sync Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../postgres-sync.js"></script>
+  <!-- Bank Emblem SVG Renderer -->
+  <script src="assets/bank_emblem.js"></script>
+  <!-- Main Application Script -->
+  <script src="app.js"></script>
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>

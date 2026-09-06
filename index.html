@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Junagadh Commercial Co-operative Bank Ltd. - Central Login</title>
+  <!-- Banking Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Noto+Sans+Gujarati:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --brand-blue: #041562;
+      --brand-white: #FFFFFF;
+      --brand-yellow: #FDBE34;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #020b33;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(4, 21, 98, 0.75) 0px, transparent 60%),
+        radial-gradient(at 100% 100%, rgba(253, 190, 52, 0.22) 0px, transparent 55%),
+        radial-gradient(at 50% 50%, #041562 0px, #020b33 100%);
+      min-height: 100vh;
+      color: #FFFFFF;
+    }
+
+    .login-card {
+      background: rgba(4, 21, 98, 0.85);
+      backdrop-filter: blur(24px);
+      border: 2px solid rgba(253, 190, 52, 0.35);
+      border-radius: 1.75rem;
+      box-shadow: 0 25px 50px -12px rgba(2, 11, 51, 0.85), 0 0 35px -5px rgba(253, 190, 52, 0.15);
+    }
+
+    .form-input, .form-select {
+      background-color: #020b33;
+      border: 2px solid #1a2c7a;
+      color: #FFFFFF;
+      border-radius: 0.75rem;
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: #FDBE34;
+      box-shadow: 0 0 0 3px rgba(253, 190, 52, 0.3);
+    }
+  </style>
+</head>
+<body class="flex flex-col justify-between items-center p-4 sm:p-8 min-h-screen">
+
+  <!-- Header -->
+  <header class="w-full max-w-4xl text-center pt-4 pb-2">
+    <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white p-2 shadow-2xl border-4 border-[#FDBE34] mb-3">
+      <img src="jccb-logo.png" alt="JCCB Logo" class="w-full h-full object-contain">
+    </div>
+    <h1 class="text-xl sm:text-3xl font-black tracking-tight text-white uppercase">
+      THE JUNAGADH COMMERCIAL CO-OPERATIVE BANK LTD.
+    </h1>
+    <p class="text-xs sm:text-sm font-bold text-[#FDBE34] mt-1 font-['Noto_Sans_Gujarati']">
+      ધી જૂનાગઢ કોમર્શિયલ કો-ઓપરેટીવ બેંક લી. • CENTRAL LOGIN PORTAL
+    </p>
+  </header>
+
+  <!-- Central Login Form Card -->
+  <main class="w-full max-w-md my-auto py-4">
+    <div class="login-card p-6 sm:p-8">
+      <div class="text-center mb-6">
+        <span class="px-3.5 py-1 rounded-full text-[11px] font-black bg-[#FDBE34]/20 text-[#FDBE34] border border-[#FDBE34]/40 uppercase tracking-widest">
+          <i class="fa-solid fa-shield-halved mr-1"></i> Central Authentication
+        </span>
+        <h2 class="text-lg sm:text-xl font-black text-white mt-3">
+          સિક્યોર લોગઇન (Bank Staff Login)
+        </h2>
+      </div>
+
+      <form id="central-login-form" onsubmit="handleCentralLogin(event)" class="space-y-5">
+        <div>
+          <label for="login-branch" class="block text-xs font-bold text-slate-200 mb-1.5 uppercase">
+            <i class="fa-solid fa-code-branch text-[#FDBE34] mr-1"></i> Select Branch (શાખા પસંદ કરો)
+          </label>
+          <select id="login-branch" class="form-select w-full font-bold" required>
+            <option value="99">99 HEAD OFFICE</option>
+            <option value="01">01 AZADCHOWK BRANCH</option>
+            <option value="02">02 JOSHIPARA BRANCH</option>
+            <option value="03">03 DOLATPARA BRANCH</option>
+            <option value="04">04 KODINAR BRANCH</option>
+            <option value="05">05 KESHOD BRANCH</option>
+            <option value="06">06 VANTHALI BRANCH</option>
+            <option value="07">07 MANAVADAR BRANCH</option>
+            <option value="08">08 GANDHINAGAR BRANCH</option>
+            <option value="09">09 LIMBDI BRANCH</option>
+            <option value="10">10 MENDARDA BRANCH</option>
+            <option value="11">11 VISAVADAR BRANCH</option>
+            <option value="12">12 JAMNAGAR BRANCH</option>
+            <option value="13">13 BUS STAND BRANCH</option>
+            <option value="14">14 LATHI BRANCH</option>
+            <option value="16">16 AHMEDABAD BRANCH</option>
+            <option value="17">17 RAJKOT BRANCH</option>
+            <option value="18">18 ZANZARDA BRANCH</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="login-password" class="block text-xs font-bold text-slate-200 mb-1.5 uppercase">
+            <i class="fa-solid fa-lock text-[#FDBE34] mr-1"></i> Password (પાસવર્ડ)
+          </label>
+          <div class="relative">
+            <input type="password" id="login-password" class="form-input w-full pr-10 font-bold" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#FDBE34]">
+              <i class="fa-solid fa-eye" id="pwd-icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="login-error-msg" class="hidden p-3 bg-red-950/90 border border-red-500/50 rounded-xl text-xs text-red-200 font-bold flex items-center gap-2">
+          <i class="fa-solid fa-circle-exclamation text-red-400 text-base shrink-0"></i>
+          <div>Incorrect password for selected branch! Contact HO if needed.</div>
+        </div>
+
+        <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-[#FDBE34] to-[#e6a824] hover:from-[#e6a824] hover:to-[#c98e16] text-[#041562] font-black rounded-xl text-xs uppercase tracking-wider shadow-lg hover:shadow-[#FDBE34]/30 transition flex items-center justify-center gap-2 cursor-pointer">
+          <span>LOGIN & PROCEED</span>
+          <i class="fa-solid fa-right-to-bracket"></i>
+        </button>
+      </form>
+
+      <div class="mt-6 pt-4 border-t border-[#1a2c7a] text-center">
+        <div class="text-[11px] font-bold text-slate-300">
+          <i class="fa-solid fa-crown text-[#FDBE34] mr-1"></i> Designed By <span class="text-[#FDBE34] font-black">Rahul Popat</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Standard Unified Footer -->
+  <footer class="w-full max-w-5xl text-center py-3.5 border-t border-slate-800 text-xs text-slate-400 no-print">
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-2 px-2">
+      <div>
+        © 2026 <strong class="text-white">The Junagadh Commercial Co-Operative Bank Ltd.</strong> • All Rights Reserved
+      </div>
+      <div class="flex items-center gap-2 text-slate-300">
+        <i class="fa-solid fa-crown text-[#FDBE34]"></i> Designed by <strong class="text-[#FDBE34]">Rahul Popat</strong>
+        <span class="text-slate-600">|</span>
+        <a href="tel:+919898180810" class="hover:text-amber-300 text-slate-300 transition flex items-center gap-1 font-semibold">
+          <i class="fa-solid fa-phone text-xs text-amber-400"></i> +91 9898180810
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Auto redirect if already logged in
+    window.addEventListener('DOMContentLoaded', () => {
+      const session = localStorage.getItem('jccb_user_session') || sessionStorage.getItem('jccb_user_session');
+      if (session) {
+        window.location.href = 'merger.html';
+      }
+    });
+
+    function togglePasswordVisibility() {
+      const pwd = document.getElementById('login-password');
+      const icon = document.getElementById('pwd-icon');
+      if (pwd.type === 'password') {
+        pwd.type = 'text';
+        icon.className = 'fa-solid fa-eye-slash';
+      } else {
+        pwd.type = 'password';
+        icon.className = 'fa-solid fa-eye';
+      }
+    }
+
+    function handleCentralLogin(e) {
+      e.preventDefault();
+      const branchSelect = document.getElementById('login-branch');
+      const passwordInput = document.getElementById('login-password');
+      const errorMsg = document.getElementById('login-error-msg');
+
+      const branchCode = branchSelect.value;
+      const branchName = branchSelect.options[branchSelect.selectedIndex].text.replace(/^\d+\s*/, '');
+      const pwd = passwordInput.value.trim();
+
+      const isHO = (branchCode === '99');
+      const validPwd = isHO ? 'Rahul#80810' : 'Admin@123';
+
+      if (pwd === validPwd) {
+        errorMsg.classList.add('hidden');
+        const sessionData = {
+          code: branchCode,
+          name: branchName,
+          role: isHO ? 'Super Admin' : 'Branch User',
+          isAdmin: isHO,
+          loginTime: Date.now()
+        };
+
+        const str = JSON.stringify(sessionData);
+        localStorage.setItem('jccb_user_session', str);
+        sessionStorage.setItem('jccb_user_session', str);
+
+        window.location.href = 'merger.html';
+      } else {
+        errorMsg.classList.remove('hidden');
+      }
+    }
+  </script>
+</body>
+</html>

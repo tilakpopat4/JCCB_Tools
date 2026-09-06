@@ -1,0 +1,365 @@
+/*
+  The Junagadh Commercial Co-Operative Bank Ltd.
+  Master Stylesheet - Clean, Spacious UI & Exact 4-Page Physical Bank Print Engine
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --bank-blue-dark: #020b33;
+  --bank-blue-primary: #041562;
+  --bank-blue-secondary: #0d268d;
+  --bank-gold: #FDBE34;
+  --bank-gold-dark: #d99a18;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure Print View is completely hidden on screen across all browsers & views */
+#printContainer,
+.print-only,
+.print-page,
+.print-container {
+  display: none !important;
+}
+
+@media screen {
+  #printContainer,
+  .print-only,
+  .print-page,
+  .print-container {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+  }
+}
+
+/* ==================== GLOBAL STRICT UPPERCASE & ENGLISH INPUT STYLING ==================== */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="search"],
+textarea {
+  text-transform: uppercase !important;
+}
+
+/* Custom Input Labels */
+.input-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.015em;
+  text-transform: none;
+}
+
+.input-label .req {
+  color: #dc2626;
+  font-weight: 900;
+  margin-left: 2px;
+}
+
+/* Modern High Contrast Form Inputs */
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  border-radius: 0.625rem;
+  border: 2px solid #94a3b8;
+  background-color: #ffffff;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: #041562;
+  box-shadow: 0 0 0 3px rgba(4, 21, 98, 0.2);
+  background-color: #ffffff;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.highlight-readonly {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  cursor: not-allowed;
+  font-weight: 700;
+  text-transform: uppercase !important;
+}
+
+/* Validation Error Input Highlight */
+.field-error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+}
+
+/* Form Section Cards */
+.form-card {
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 2px solid #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.form-card:hover {
+  box-shadow: 0 8px 12px -2px rgba(0, 0, 0, 0.08);
+}
+
+.section-header {
+  background: linear-gradient(135deg, #041562 0%, #0d268d 100%);
+  color: #ffffff;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 3px solid #FDBE34;
+}
+
+/* Applicant Columns High Contrast Cards */
+.applicant-col-card {
+  border-radius: 0.875rem;
+  border: 2px solid #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+
+.first-card {
+  border-color: #041562;
+  background-color: #f8fafc;
+}
+
+.joint1-card {
+  border-color: #0d268d;
+  background-color: #f8fafc;
+}
+
+.joint2-card {
+  border-color: #0d9488;
+  background-color: #f8fafc;
+}
+
+/* Bank Officer Dedicated Box */
+.bank-officer-box {
+  background: linear-gradient(135deg, #fffdf5 0%, #fff8e6 100%);
+  border: 2px solid #FDBE34;
+  border-radius: 1rem;
+  padding: 1.25rem;
+}
+
+/* Badges */
+.badge-gold {
+  background-color: #FDBE34;
+  color: #041562;
+  font-weight: 800;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ==================== PRINT STYLESHEET (EXACT 4-PAGE PHYSICAL BANK FORM) ==================== */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif !important;
+    font-size: 8.5pt !important;
+    line-height: 1.35 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  #printContainer,
+  .print-only,
+  .print-container {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    opacity: 1 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 4mm 6mm 4mm 6mm;
+  }
+
+  .print-page {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    page-break-after: always;
+    page-break-inside: avoid;
+    box-sizing: border-box;
+    width: 100%;
+    height: 288mm;
+    max-height: 288mm;
+    flex-direction: column;
+    justify-content: space-between;
+    border: 2.5px solid #041562;
+    padding: 4mm 5mm;
+    margin-bottom: 0;
+    position: relative;
+    background: #ffffff;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto;
+  }
+
+  .print-outer-border {
+    border: 2.5px solid #041562;
+  }
+
+  .print-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 2px solid #041562;
+    padding-bottom: 3.5px;
+    margin-bottom: 3.5px;
+  }
+
+  .print-section-title {
+    background: #041562 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-weight: 800;
+    font-size: 8.8pt;
+    padding: 4px 6px;
+    text-align: center;
+    letter-spacing: 0.3px;
+    margin-top: 3.5px;
+    margin-bottom: 3.5px;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2.5px;
+    margin-bottom: 3.5px;
+    font-size: 8.2pt;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #1e293b;
+    padding: 4px 5px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .print-table th {
+    background-color: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-weight: bold;
+    color: #0f172a;
+    text-align: center;
+  }
+
+  /* Big Bold Checkbox Tick */
+  .p-checked {
+    font-weight: 900 !important;
+    font-size: 11pt !important;
+    color: #041562 !important;
+    display: inline-block;
+  }
+
+  .p-unchecked {
+    font-weight: normal !important;
+    font-size: 9.5pt !important;
+    color: #64748b !important;
+    display: inline-block;
+  }
+
+  .print-val {
+    font-weight: 700;
+    color: #041562;
+    text-transform: uppercase;
+  }
+
+  .print-cust-name {
+    font-weight: 900 !important;
+    font-size: 9.8pt !important;
+    color: #041562 !important;
+    letter-spacing: 0.3px;
+  }
+
+  .print-pan-val {
+    font-family: 'Courier New', Courier, monospace !important;
+    font-weight: 800 !important;
+    font-size: 9.8pt !important;
+    color: #041562 !important;
+    letter-spacing: 1.2px;
+  }
+
+  .print-aadhar-val {
+    font-family: 'Courier New', Courier, monospace !important;
+    font-weight: 800 !important;
+    font-size: 9.5pt !important;
+    color: #002b99 !important;
+    letter-spacing: 1px;
+  }
+
+  .print-gu-text {
+    font-size: 8.8pt;
+    color: #0f172a;
+    line-height: 1.55;
+    text-align: justify;
+  }
+
+  .print-gu-text p {
+    margin-top: 4px;
+    margin-bottom: 4px;
+  }
+
+  .print-gu-list {
+    margin: 0;
+    padding-left: 20px !important;
+    list-style-type: disc !important;
+    list-style-position: outside !important;
+    font-size: 8.4pt;
+    line-height: 1.45;
+    text-align: justify;
+  }
+
+  .print-gu-list li {
+    margin-bottom: 4px;
+    padding-left: 2px;
+    display: list-item !important;
+    list-style-type: disc !important;
+  }
+}

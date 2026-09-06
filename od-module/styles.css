@@ -1,0 +1,345 @@
+/*
+  The Junagadh Commercial Co-Operative Bank Ltd.
+  Overdraft Loan Module - Master Stylesheet
+  Clean, Spacious UI & Exact Physical Bank Print Engine (FD FORM MODULE Compliant)
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --bank-blue-dark: #020b33;
+  --bank-blue-primary: #041562;
+  --bank-blue-secondary: #0d268d;
+  --bank-gold: #FDBE34;
+  --bank-gold-dark: #d99a18;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Gujarati', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
+  background-color: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-gujarati {
+  font-family: 'Noto Sans Gujarati', 'Shruti', 'Gujarati MT', sans-serif;
+}
+
+/* ==================== GLOBAL FORM INPUT STYLING ==================== */
+.input-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.req {
+  color: #dc2626;
+  font-weight: 900;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.825rem;
+  border-radius: 0.5rem;
+  border: 1.5px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: #041562;
+  box-shadow: 0 0 0 3px rgba(4, 21, 98, 0.2);
+  background-color: #fff;
+}
+
+.highlight-readonly {
+  background-color: #f8fafc !important;
+  color: #041562 !important;
+  font-weight: 700;
+  border-color: #93c5fd !important;
+}
+
+.form-card {
+  background: #ffffff;
+  border-radius: 1rem;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.section-header {
+  background: linear-gradient(to right, #041562, #0d268d);
+  color: #ffffff;
+  padding: 0.75rem 1.25rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #FDBE34;
+}
+
+.badge-gold {
+  background: rgba(253, 190, 52, 0.25);
+  color: #d99a18;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(253, 190, 52, 0.6);
+}
+
+.nav-tab-active {
+  background: #041562 !important;
+  color: #FDBE34 !important;
+  border-color: #FDBE34 !important;
+  box-shadow: 0 2px 6px rgba(4, 21, 98, 0.25);
+}
+
+/* Ensure Print View is completely hidden on screen across all browsers & views */
+#printContainer,
+#printDocumentContainer,
+.print-only,
+.print-page,
+.a4-print-page,
+.print-container {
+  display: none !important;
+}
+
+@media screen {
+  #printContainer,
+  #printDocumentContainer,
+  .print-only,
+  .print-page,
+  .a4-print-page,
+  .print-container {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+  }
+}
+
+/* ==================== PRINT PREVIEW MODAL CANVAS STYLES ==================== */
+#printPreviewModal {
+  z-index: 999999 !important;
+  background-color: #ffffff !important;
+}
+
+.preview-page-canvas {
+  background: #ffffff !important;
+  width: 210mm;
+  max-width: 100% !important;
+  height: 285mm !important;
+  min-height: 285mm !important;
+  max-height: 285mm !important;
+  box-sizing: border-box !important;
+  padding: 6mm 8mm !important;
+  border: 1.2px solid #000000 !important;
+  border-radius: 2px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  margin: 0 auto 30px auto;
+  display: block !important;
+  position: relative;
+  font-size: 9pt;
+  line-height: 1.5;
+  color: #000000;
+  overflow: hidden !important;
+}
+
+.preview-page-canvas.dp-note-canvas {
+  width: 210mm;
+  max-width: 100% !important;
+  height: 136mm !important;
+  min-height: 136mm !important;
+  max-height: 136mm !important;
+  border: 1.2px solid #000000 !important;
+  border-radius: 4px !important;
+  padding: 4mm 6mm !important;
+  box-sizing: border-box !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  margin: 0 auto 30px auto;
+  overflow: hidden !important;
+}
+
+/* Fill-data styling: pure text, bold, no underline */
+.fill-data,
+.fill-data-solid {
+  font-weight: 700;
+  color: #000000;
+  border-bottom: none !important;
+  padding: 0;
+  display: inline;
+}
+
+/* Revenue Stamp Box */
+.revenue-stamp-box {
+  width: 80px;
+  height: 95px;
+  border: 1.5px dashed #005670;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 7.5pt;
+  font-weight: 800;
+  color: #64748b;
+  background: #f8fafc;
+  margin: 0 auto;
+}
+
+/* Print Tables matching official bank scans */
+.print-doc-table, .print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8pt;
+  margin: 3px 0;
+}
+
+.print-doc-table th, .print-table th {
+  background-color: #f1f5f9 !important;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  color: #000000;
+  font-weight: 800;
+  border: 1px solid #000000;
+  padding: 3.5px 5px;
+  text-align: center;
+  font-size: 7.5pt;
+  line-height: 1.2;
+}
+
+.print-doc-table td, .print-table td {
+  border: 1px solid #000000;
+  padding: 3.5px 5px;
+  color: #000000;
+  font-size: 8pt;
+  vertical-align: middle;
+}
+
+.print-val {
+  font-weight: 700;
+  color: #041562;
+}
+
+.print-cust-name {
+  font-weight: 900 !important;
+  color: #041562 !important;
+}
+
+/* ==========================================================================
+   PRINT ENGINE (EXACT MATCH WITH FD FORM MODULE)
+   - Paper Size: A4 Portrait
+   - Margin: 4mm 6mm 4mm 6mm
+   - Height: 288mm, max-height: 288mm, flex column justify-between
+   - page-break-after: always, page-break-inside: avoid
+   ========================================================================== */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Gujarati', Arial, sans-serif !important;
+    font-size: 8.5pt !important;
+    line-height: 1.4 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  #printPreviewModal {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  #printContainer,
+  #printDocumentContainer,
+  .print-only,
+  .print-container {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    opacity: 1 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 5mm 6mm;
+  }
+
+  .print-page,
+  .a4-print-page {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 285mm !important;
+    min-height: 285mm !important;
+    max-height: 285mm !important;
+    border: 1.2px solid #000000 !important;
+    padding: 6mm 8mm !important;
+    margin: 0 !important;
+    position: relative !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+  }
+
+  .print-page:last-child,
+  .a4-print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .dp-print-page {
+    width: 100% !important;
+    height: 136mm !important;
+    max-height: 136mm !important;
+    min-height: 136mm !important;
+    border: 1.2px solid #000000 !important;
+    border-radius: 4px !important;
+    padding: 4mm 6mm !important;
+    box-sizing: border-box !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    background: #ffffff !important;
+    overflow: hidden !important;
+  }
+
+  .print-section-title {
+    background: #041562 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-weight: 800;
+    font-size: 8.5pt;
+    padding: 3px 6px;
+    text-align: center;
+    margin: 2px 0;
+  }
+}
