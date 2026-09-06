@@ -19,8 +19,15 @@ const PostgresSync = (function () {
     const saved = localStorage.getItem(CONFIG_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      config = { ...config, ...parsed };
-      if (!config.neonConnString) config.neonConnString = DEFAULT_NEON_CONN;
+      // Auto-migrate if stale rotated password exists
+      if (parsed.neonConnString && !parsed.neonConnString.includes("npg_84BeauzJCGtj")) {
+        config = { ...config, ...parsed };
+      } else {
+        config.neonConnString = DEFAULT_NEON_CONN;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+      }
+    } else {
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     }
   } catch (e) {
     console.warn("[PostgresSync] Config parse error:", e);
