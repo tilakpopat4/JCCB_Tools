@@ -6,7 +6,18 @@
 -- 1. Enable UUID Extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Gold Loans Table
+-- 2. Bank Branches Master Table
+CREATE TABLE IF NOT EXISTS public.jccb_branches (
+    code TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    short_name TEXT,
+    name_guj TEXT,
+    is_ho BOOLEAN DEFAULT FALSE,
+    status TEXT DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Gold Loans Table
 CREATE TABLE IF NOT EXISTS public.jccb_gold_loans (
     id TEXT PRIMARY KEY,
     branch_code TEXT NOT NULL,
