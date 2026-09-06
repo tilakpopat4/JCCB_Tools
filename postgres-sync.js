@@ -9,7 +9,7 @@ const PostgresSync = (function () {
 
   // Configuration (Loaded from browser local storage)
   let config = {
-    provider: "neon", // "neon" | "supabase"
+    provider: "neon",
     neonConnString: "",
     autoSync: true
   };
@@ -28,7 +28,7 @@ const PostgresSync = (function () {
 
   // Helper: Parse Neon Connection String
   function parseNeonConnString(connStr) {
-    if (!connStr) return null;
+    if (!connStr || typeof connStr !== "string") return null;
     try {
       const match = connStr.match(/postgresql:\/\/([^:]+):([^@]+)@([^/]+)\/([^?]+)/);
       if (match) {
@@ -46,10 +46,18 @@ const PostgresSync = (function () {
   }
 
   // Neon HTTP Query Runner (via local CORS-free proxy or direct endpoint)
-  async function runNeonQuery(sql, params = []) {
-    const connStr = config.neonConnString || DEFAULT_NEON_CONN;
+  async function runNeonQuery(sql, params = [], customConnStr = null) {
+    const connStr = (customConnStr || config.neonConnString || "").trim();
+    if (!connStr) {
+      throw new Error("No Neon connection string configured. Please enter your connection string in the Cloud DB modal.");
+    }
 
-    // Try via local proxy endpoint first (CORS safe)
+    const parsed = parseNeonConnString(connStr);
+    if (!parsed) {
+      throw new Error("Invalid connection string format. Example: postgresql://user:password@ep-xyz.aws.neon.tech/neondb?sslmode=require");
+    }
+
+    // Try via proxy endpoint first if running on server/local
     try {
       const proxyResp = await fetch("/api/sql", {
         method: "POST",
@@ -62,15 +70,20 @@ const PostgresSync = (function () {
 
       if (proxyResp.ok) {
         return await proxyResp.json();
+      } else {
+        const proxyErr = await proxyResp.json().catch(() => null);
+        if (proxyErr && proxyErr.error) {
+          throw new Error(proxyErr.error);
+        }
       }
     } catch (proxyErr) {
-      console.warn("[PostgresSync] Local proxy bypass:", proxyErr);
+      // If error came from Neon proxy failure, rethrow
+      if (proxyErr && proxyErr.message && !proxyErr.message.includes("fetch")) {
+        throw proxyErr;
+      }
     }
 
-    // Direct endpoint fallback
-    const parsed = parseNeonConnString(connStr);
-    if (!parsed) throw new Error("Invalid Neon connection string");
-
+    // Direct endpoint fetch
     const resp = await fetch(parsed.httpEndpoint, {
       method: "POST",
       headers: {
@@ -81,8 +94,12 @@ const PostgresSync = (function () {
     });
 
     if (!resp.ok) {
-      const errText = await resp.text();
-      throw new Error(`Neon HTTP Error (${resp.status}): ${errText}`);
+      let errText = await resp.text();
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson.message) errText = errJson.message;
+      } catch (e) { }
+      throw new Error(errText);
     }
 
     return await resp.json();
@@ -95,12 +112,12 @@ const PostgresSync = (function () {
         const testRes = await runNeonQuery("SELECT 1 as live_status;");
         if (testRes && testRes.rows && testRes.rows.length) {
           isConnected = true;
-          console.log("⚡ [PostgresSync] Connected to Neon PostgreSQL (Singapore / ap-southeast-1)");
+          console.log("⚡ [PostgresSync] Connected to Neon PostgreSQL (Singapore)");
         } else {
           isConnected = false;
         }
       } catch (err) {
-        console.warn("[PostgresSync] Neon connection check failed, retrying init...", err);
+        console.warn("[PostgresSync] Neon connection check failed, trying auto table creation...", err);
         try {
           await initNeonTables();
           isConnected = true;
@@ -118,7 +135,7 @@ const PostgresSync = (function () {
   }
 
   // Initialize Tables on Neon sequentially
-  async function initNeonTables() {
+  async function initNeonTables(customConnStr = null) {
     const stmts = [
       `CREATE TABLE IF NOT EXISTS jccb_gold_loans (
         id TEXT PRIMARY KEY,
@@ -170,7 +187,7 @@ const PostgresSync = (function () {
     ];
 
     for (const s of stmts) {
-      await runNeonQuery(s);
+      await runNeonQuery(s, [], customConnStr);
     }
   }
 
@@ -193,10 +210,10 @@ const PostgresSync = (function () {
       badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> <span>Cloud DB: Offline Local</span>`;
     } else if (isConnected) {
       badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100 transition shadow-sm";
-      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> <span>Neon Postgres: Live (SG)</span>`;
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> <span>Neon Postgres: Live</span>`;
     } else {
       badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-300 flex items-center gap-1.5 cursor-pointer hover:bg-rose-100 transition shadow-sm";
-      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> <span>Neon DB: Reconnecting...</span>`;
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> <span>Neon DB: Connect...</span>`;
     }
   }
 
@@ -335,7 +352,7 @@ const PostgresSync = (function () {
             <span class="text-2xl">⚡</span>
             <div>
               <h3 class="font-bold text-lg">Neon Serverless PostgreSQL Database</h3>
-              <p class="text-xs text-blue-200">Live Multi-Branch Cloud Sync (Singapore)</p>
+              <p class="text-xs text-blue-200">Live Multi-Branch Cloud Sync</p>
             </div>
           </div>
           <button onclick="PostgresSync.hideConfigModal()" class="text-white/80 hover:text-white text-xl font-bold">&times;</button>
@@ -346,7 +363,7 @@ const PostgresSync = (function () {
             <label class="block font-bold text-slate-800 mb-1">Neon Database Connection String</label>
             <textarea id="pg-cfg-neon-conn" rows="3" placeholder="postgresql://neondb_owner:password@ep-xyz.aws.neon.tech/neondb?sslmode=require" 
               class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-xs">${config.neonConnString || ''}</textarea>
-            <p class="text-[11px] text-slate-500 mt-1">Host: Singapore (ap-southeast-1) • Latency: ~30ms</p>
+            <p class="text-[11px] text-slate-500 mt-1">Paste your freshly rotated connection string from your Neon Project Dashboard.</p>
           </div>
 
           <div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-xs space-y-1.5">
@@ -388,7 +405,7 @@ const PostgresSync = (function () {
 
   async function testSettings() {
     const statusDiv = document.getElementById("pg-cfg-test-status");
-    const connStr = document.getElementById("pg-cfg-neon-conn").value.trim();
+    const connStr = (document.getElementById("pg-cfg-neon-conn").value || "").trim();
 
     if (!connStr) {
       statusDiv.className = "p-3 rounded-lg text-xs font-semibold bg-amber-100 text-amber-800";
@@ -398,17 +415,15 @@ const PostgresSync = (function () {
     }
 
     statusDiv.className = "p-3 rounded-lg text-xs font-semibold bg-blue-100 text-blue-800";
-    statusDiv.innerHTML = "⚡ Connecting to Neon PostgreSQL in Singapore...";
+    statusDiv.innerHTML = "⚡ Connecting to Neon PostgreSQL...";
     statusDiv.classList.remove("hidden");
 
     try {
-      config.neonConnString = connStr;
-      config.provider = "neon";
-      const testRes = await runNeonQuery("SELECT 1 as live_status;");
+      const testRes = await runNeonQuery("SELECT 1 as live_status;", [], connStr);
 
       if (testRes && testRes.rows && testRes.rows.length) {
         statusDiv.className = "p-3 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800";
-        statusDiv.innerHTML = "✅ Connection successful! Neon PostgreSQL is live & ready in Singapore.";
+        statusDiv.innerHTML = "✅ Connection successful! Neon PostgreSQL is live & ready.";
       } else {
         throw new Error("Invalid response from database");
       }
@@ -419,7 +434,7 @@ const PostgresSync = (function () {
   }
 
   function saveSettings() {
-    const connStr = document.getElementById("pg-cfg-neon-conn").value.trim();
+    const connStr = (document.getElementById("pg-cfg-neon-conn").value || "").trim();
 
     config.provider = "neon";
     config.neonConnString = connStr;
