@@ -12,3 +12,5 @@ Thumbs.db
 *.tmp
 .tempmediaStorage/
 scratch/
+.env
+.env.local

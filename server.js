@@ -5,7 +5,7 @@ const path = require('path');
 const PORT = process.env.PORT || 8080;
 const PUBLIC_DIR = __dirname;
 
-const DEFAULT_NEON_CONN = "postgresql://neondb_owner:npg_84BeauzJCGtj@ep-floral-frog-b3s0jrlo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require";
+const DEFAULT_NEON_CONN = process.env.NEON_DATABASE_URL || "";
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
