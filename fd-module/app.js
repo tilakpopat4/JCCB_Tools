@@ -195,7 +195,9 @@ const FDApp = {
 
     // 2. Sync Header Branch & Role Text
     const branchText = document.getElementById('user-branch-text');
+    const roleBadge = document.getElementById('user-role-badge');
     const isHO = Boolean(session.isAdmin || session.code === "99" || session.code === 99 || session.role === "Super Admin" || (session.name && session.name.toUpperCase().includes("HEAD OFFICE")));
+    if (branchText) branchText.textContent = `${session.code || '99'} ${session.name || 'HEAD OFFICE'}`;
     if (roleBadge) roleBadge.textContent = isHO ? '👑 Super Admin' : '🏢 Branch User';
 
     // 3. Backup & Restore Box (Head Office / Super Admin Only)
