@@ -1,20 +1,17 @@
 {
   "version": 2,
-  "cleanUrls": false,
-  "trailingSlash": false,
-  "rewrites": [
-    { "source": "/api/sql", "destination": "/api/sql.js" },
-    { "source": "/merger", "destination": "/merger.html" },
-    { "source": "/gold", "destination": "/gold-jccb-final-main/index.html" },
-    { "source": "/fd", "destination": "/fd-module/index.html" },
-    { "source": "/od", "destination": "/od-module/index.html" }
+  "routes": [
+    { "src": "/api/sql", "dest": "/api/sql.js" },
+    { "handle": "filesystem" },
+    { "src": "/merger", "dest": "/merger.html" },
+    { "src": "/(.*)", "dest": "/$1" }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Neon-Connection-String, Authorization" }
       ]
     }
