@@ -138,6 +138,38 @@ const FDApp = {
     this.setupStrictEnglishUppercaseInputs();
     this.setupSessionAndBranchLock();
     this.updateRegisterBadgeCount();
+    this.startNeonDeviceSync();
+  },
+
+  async startNeonDeviceSync() {
+    const pullCloudFD = async () => {
+      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+        try {
+          const res = await window.PostgresSync.runNeonQuery("SELECT payload FROM jccb_fd_forms ORDER BY updated_at DESC;");
+          if (res && res.rows && res.rows.length) {
+            let savedList = {};
+            try {
+              savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
+            } catch(e) {}
+            let changed = false;
+            res.rows.forEach(r => {
+              const item = r.payload || r;
+              if (item && item.id && !savedList[item.id]) {
+                savedList[item.id] = item;
+                changed = true;
+              }
+            });
+            if (changed) {
+              localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
+              this.updateRegisterBadgeCount();
+              this.renderRegisterTable();
+            }
+          }
+        } catch(e) {}
+      }
+    };
+    pullCloudFD();
+    setInterval(pullCloudFD, 20000);
   },
 
   setupSessionAndBranchLock() {

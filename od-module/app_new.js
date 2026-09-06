@@ -151,6 +151,35 @@ const OverdraftApp = {
     this.updateReportMetrics();
     this.setupSessionAndBranchLock();
     renderBankLogos();
+    this.startNeonDeviceSync();
+  },
+
+  async startNeonDeviceSync() {
+    const pullCloudOD = async () => {
+      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+        try {
+          const res = await window.PostgresSync.runNeonQuery("SELECT payload FROM jccb_od_loans ORDER BY updated_at DESC;");
+          if (res && res.rows && res.rows.length) {
+            let allRecords = this.getAllRecords();
+            let changed = false;
+            res.rows.forEach(r => {
+              const item = r.payload || r;
+              if (item && item.id && !allRecords[item.id]) {
+                allRecords[item.id] = item;
+                changed = true;
+              }
+            });
+            if (changed) {
+              localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
+              this.updateRegisterTable();
+              this.updateReportMetrics();
+            }
+          }
+        } catch(e) {}
+      }
+    };
+    pullCloudOD();
+    setInterval(pullCloudOD, 20000);
   },
 
   setupSessionAndBranchLock() {
