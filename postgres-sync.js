@@ -6,18 +6,21 @@
 
 const PostgresSync = (function () {
   const CONFIG_KEY = "tjccb_cloud_db_config";
+  const DEFAULT_NEON_CONN = "postgresql://neondb_owner:npg_kF5qI9QzSacN@ep-floral-frog-b3s0jrlo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require";
 
-  // Configuration (Loaded from browser local storage)
+  // Configuration (Pre-configured system default + local storage override)
   let config = {
     provider: "neon",
-    neonConnString: "",
+    neonConnString: DEFAULT_NEON_CONN,
     autoSync: true
   };
 
   try {
     const saved = localStorage.getItem(CONFIG_KEY);
     if (saved) {
-      config = { ...config, ...JSON.parse(saved) };
+      const parsed = JSON.parse(saved);
+      config = { ...config, ...parsed };
+      if (!config.neonConnString) config.neonConnString = DEFAULT_NEON_CONN;
     }
   } catch (e) {
     console.warn("[PostgresSync] Config parse error:", e);
