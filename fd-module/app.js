@@ -1555,11 +1555,82 @@ const FDApp = {
 
     this.updateRegisterBadgeCount();
 
-    if (keys.length === 0) {
+    const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
+    const userBranch = String(this.currentSession ? this.currentSession.code : '99').replace(/\D/g, '').padStart(2, '0');
+    const selectedBranchFilter = this.selectedRegisterBranch || (isHO ? 'ALL' : userBranch);
+
+    // Sort entries by createdAt timestamp in descending order (Newest first)
+    let sortedEntries = keys.map(k => savedList[k]).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    // Branch Filtering logic
+    if (!isHO) {
+      // Branch user can ONLY see their own branch's entries
+      sortedEntries = sortedEntries.filter(item => {
+        const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || (item.branch ? item.branch.replace(/\D/g, '') : '') || '').padStart(2, '0');
+        return itemBranch === userBranch;
+      });
+    } else if (selectedBranchFilter !== 'ALL') {
+      // Head office filtered by specific branch
+      sortedEntries = sortedEntries.filter(item => {
+        const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || (item.branch ? item.branch.replace(/\D/g, '') : '') || '').padStart(2, '0');
+        return itemBranch === selectedBranchFilter;
+      });
+    }
+
+    let filterBarHtml = '';
+    if (isHO) {
+      filterBarHtml = `
+        <div class="mb-4 bg-slate-900 text-white p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-md border border-slate-700">
+          <div class="flex items-center gap-2">
+            <span class="text-amber-400 font-black text-sm">👑 Head Office View:</span>
+            <span class="text-xs text-slate-300 font-semibold">Bank-wide Global Consolidated Database</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-300">🏢 Filter by Branch:</label>
+            <select id="fdRegisterBranchFilter" onchange="FDApp.changeRegisterBranchFilter(this.value)" class="bg-slate-800 text-amber-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-600 focus:outline-none focus:border-amber-400">
+              <option value="ALL" ${selectedBranchFilter === 'ALL' ? 'selected' : ''}>🌟 All Branches (બધી શાખાઓ)</option>
+              <option value="99" ${selectedBranchFilter === '99' ? 'selected' : ''}>99 HEAD OFFICE</option>
+              <option value="01" ${selectedBranchFilter === '01' ? 'selected' : ''}>01 STATION ROAD</option>
+              <option value="02" ${selectedBranchFilter === '02' ? 'selected' : ''}>02 BUS STAND ROAD</option>
+              <option value="03" ${selectedBranchFilter === '03' ? 'selected' : ''}>03 VEJALPUR BRANCH</option>
+              <option value="04" ${selectedBranchFilter === '04' ? 'selected' : ''}>04 JOSHIPURA BRANCH</option>
+              <option value="05" ${selectedBranchFilter === '05' ? 'selected' : ''}>05 BILKHA BRANCH</option>
+              <option value="06" ${selectedBranchFilter === '06' ? 'selected' : ''}>06 VISAVADAR BRANCH</option>
+              <option value="07" ${selectedBranchFilter === '07' ? 'selected' : ''}>07 BHEESAN BRANCH</option>
+              <option value="08" ${selectedBranchFilter === '08' ? 'selected' : ''}>08 MENDARDA BRANCH</option>
+              <option value="09" ${selectedBranchFilter === '09' ? 'selected' : ''}>09 TALALA BRANCH</option>
+              <option value="10" ${selectedBranchFilter === '10' ? 'selected' : ''}>10 VERAVAL BRANCH</option>
+              <option value="11" ${selectedBranchFilter === '11' ? 'selected' : ''}>11 KESHOD BRANCH</option>
+              <option value="12" ${selectedBranchFilter === '12' ? 'selected' : ''}>12 MANAVADAR BRANCH</option>
+              <option value="13" ${selectedBranchFilter === '13' ? 'selected' : ''}>13 KANJHA BRANCH</option>
+              <option value="14" ${selectedBranchFilter === '14' ? 'selected' : ''}>14 VANTHALI BRANCH</option>
+              <option value="15" ${selectedBranchFilter === '15' ? 'selected' : ''}>15 SHAPUR BRANCH</option>
+              <option value="16" ${selectedBranchFilter === '16' ? 'selected' : ''}>16 SARDARBAUG BRANCH</option>
+              <option value="17" ${selectedBranchFilter === '17' ? 'selected' : ''}>17 GANDHIGRAM BRANCH</option>
+              <option value="18" ${selectedBranchFilter === '18' ? 'selected' : ''}>18 ZANZARDA BRANCH</option>
+            </select>
+          </div>
+        </div>
+      `;
+    } else {
+      filterBarHtml = `
+        <div class="mb-4 bg-blue-50 border border-blue-200 text-blue-900 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold">
+          <div class="flex items-center gap-2">
+            <span>🏢 Branch Context:</span>
+            <span class="bg-blue-900 text-white px-2.5 py-0.5 rounded font-black">${this.currentSession ? this.currentSession.name : 'Branch'}</span>
+            <span class="text-slate-500 font-semibold">(Displaying records for your branch only)</span>
+          </div>
+          <span class="text-blue-800 font-black">${sortedEntries.length} Records</span>
+        </div>
+      `;
+    }
+
+    if (sortedEntries.length === 0) {
       container.innerHTML = `
+        ${filterBarHtml}
         <div class="p-12 text-center text-slate-500 font-bold bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300">
           <i data-lucide="file-x-2" class="w-10 h-10 mx-auto mb-2 text-slate-400"></i>
-          <div>No FD Application records in register yet. (રજીસ્ટરમાં કોઈ રેકોર્ડ નથી)</div>
+          <div>No FD Application records found for this branch selection.</div>
           <button onclick="FDApp.switchView('form')" class="mt-4 px-4 py-2 bg-blue-900 text-white rounded-lg text-xs font-bold shadow">
             + Create New FD Form Entry (નવું ફોર્મ ભરો)
           </button>
@@ -1569,11 +1640,9 @@ const FDApp = {
       return;
     }
 
-    // Sort entries by createdAt timestamp in descending order (Newest first)
-    const sortedEntries = keys.map(k => savedList[k]).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
     let totalAmount = 0;
     let html = `
+      ${filterBarHtml}
       <div class="overflow-x-auto border-2 border-slate-300 rounded-xl shadow-sm">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
@@ -1649,6 +1718,11 @@ const FDApp = {
 
     container.innerHTML = html;
     if (window.lucide) lucide.createIcons();
+  },
+
+  changeRegisterBranchFilter(branchVal) {
+    this.selectedRegisterBranch = branchVal;
+    this.renderRegisterTable();
   },
 
   // Edit record from Register

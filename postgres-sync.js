@@ -230,7 +230,9 @@ const PostgresSync = (function () {
     if (!isConnected) return false;
     try {
       const id = String(loan.id || loan.loanNo || Date.now());
-      const branchCode = String(loan.branchCode || loan.branchId || "99");
+      let bCode = String(loan.branchCode || loan.branchId || (loan.branchName ? loan.branchName.replace(/\D/g, '') : '') || "99").trim();
+      if (bCode.length === 1) bCode = '0' + bCode;
+      const branchCode = bCode || "99";
       const loanNo = String(loan.loanNo || loan.id || "");
       const customerName = loan.customerName || loan.borrowerName || "";
       const phone = loan.phone || loan.mobile || "";
@@ -242,6 +244,7 @@ const PostgresSync = (function () {
         INSERT INTO jccb_gold_loans (id, branch_code, loan_no, customer_name, phone, sanction_amount, sanction_date, status, payload, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         ON CONFLICT (id) DO UPDATE SET
+          branch_code = EXCLUDED.branch_code,
           loan_no = EXCLUDED.loan_no,
           customer_name = EXCLUDED.customer_name,
           phone = EXCLUDED.phone,
@@ -263,11 +266,13 @@ const PostgresSync = (function () {
     if (!isConnected) return false;
     try {
       const id = String(form.formNo || form.id || Date.now());
-      const branchCode = String(form.branchCode || form.branchId || "99");
-      const formNo = String(form.formNo || "");
-      const customerName = form.customerName || form.applicantName || "";
-      const depositAmount = Number(form.depositAmount || form.amount || 0);
-      const interestRate = Number(form.interestRate || form.rate || 0);
+      let bCode = String(form.branchCode || (form.data && form.data.branchCode) || form.branchId || (form.branch ? form.branch.replace(/\D/g, '') : '') || "99").trim();
+      if (bCode.length === 1) bCode = '0' + bCode;
+      const branchCode = bCode || "99";
+      const formNo = String(form.formNo || form.id || "");
+      const customerName = form.customerName || form.applicantName || (form.data && form.data.cust1Name) || "";
+      const depositAmount = Number(form.depositAmount || form.amount || (form.data && form.data.deposit1Amount) || 0);
+      const interestRate = Number(form.interestRate || form.roi || form.rate || (form.data && form.data.deposit1Roi) || 0);
       const tenureMonths = Number(form.tenureMonths || form.months || 12);
       const status = form.status || "COMPLETED";
 
@@ -275,6 +280,7 @@ const PostgresSync = (function () {
         INSERT INTO jccb_fd_forms (id, branch_code, form_no, customer_name, deposit_amount, interest_rate, tenure_months, status, payload, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         ON CONFLICT (id) DO UPDATE SET
+          branch_code = EXCLUDED.branch_code,
           customer_name = EXCLUDED.customer_name,
           deposit_amount = EXCLUDED.deposit_amount,
           interest_rate = EXCLUDED.interest_rate,
@@ -296,17 +302,20 @@ const PostgresSync = (function () {
     if (!isConnected) return false;
     try {
       const id = String(od.accountNo || od.id || Date.now());
-      const branchCode = String(od.branchCode || od.branchId || "99");
-      const accountNo = String(od.accountNo || od.loanNo || "");
-      const customerName = od.customerName || od.borrowerName || "";
-      const limitAmount = Number(od.limitAmount || od.sanctionAmount || od.loanAmount || 0);
-      const fdReceiptNo = String(od.fdReceiptNo || od.fdNumber || "");
+      let bCode = String(od.branchCode || od.branchId || (od.branchName ? od.branchName.replace(/\D/g, '') : '') || "99").trim();
+      if (bCode.length === 1) bCode = '0' + bCode;
+      const branchCode = bCode || "99";
+      const accountNo = String(od.accountNo || od.id || od.savingAccNo || "");
+      const customerName = od.customerName || (od.applicant1 && od.applicant1.name) || od.borrowerName || "";
+      const limitAmount = Number(od.limitAmount || od.loanAmount || od.sanctionAmount || 0);
+      const fdReceiptNo = String(od.fdReceiptNo || (od.fdReceipts && od.fdReceipts[0] ? od.fdReceipts[0].certNo : "") || "");
       const status = od.status || "SANCTIONED";
 
       const sql = `
         INSERT INTO jccb_od_loans (id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no, status, payload, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
         ON CONFLICT (id) DO UPDATE SET
+          branch_code = EXCLUDED.branch_code,
           customer_name = EXCLUDED.customer_name,
           limit_amount = EXCLUDED.limit_amount,
           fd_receipt_no = EXCLUDED.fd_receipt_no,
@@ -319,6 +328,28 @@ const PostgresSync = (function () {
     } catch (e) {
       console.warn("[PostgresSync] OD sync error:", e);
       return false;
+    }
+  }
+
+  // Fetch Module Records with Branch Role Filter
+  async function fetchModuleRecords(tableName, branchCode = null) {
+    if (!isConnected) return [];
+    try {
+      const isHO = !branchCode || branchCode === "99" || branchCode === "ALL" || branchCode === "ho";
+      let sql, params;
+      if (isHO) {
+        sql = `SELECT payload FROM ${tableName} ORDER BY updated_at DESC;`;
+        params = [];
+      } else {
+        let bCode = String(branchCode).replace(/\D/g, '').padStart(2, '0');
+        sql = `SELECT payload FROM ${tableName} WHERE branch_code = $1 ORDER BY updated_at DESC;`;
+        params = [bCode];
+      }
+      const res = await runNeonQuery(sql, params);
+      return (res && res.rows) ? res.rows.map(r => r.payload || r) : [];
+    } catch (e) {
+      console.error(`[PostgresSync] fetchModuleRecords (${tableName}) error:`, e);
+      return [];
     }
   }
 
@@ -468,6 +499,7 @@ const PostgresSync = (function () {
     syncGoldLoan,
     syncFDForm,
     syncODLoan,
+    fetchModuleRecords,
     fetchAllHeadOfficeData,
     showConfigModal,
     hideConfigModal,

@@ -95,12 +95,21 @@
     },
 
     getLoans: async function (branchCode = null) {
+      let bCode = branchCode;
+      if (!bCode) {
+        if (!this.isHeadOffice()) {
+          bCode = this.getBranchId();
+        }
+      }
+      if (bCode && typeof bCode === 'string' && bCode.length === 1) bCode = '0' + bCode;
+
       if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
         try {
-          const sql = branchCode && branchCode !== "99" && branchCode !== "ALL"
+          const isAll = !bCode || bCode === "99" || bCode === "ALL" || bCode === "ho";
+          const sql = !isAll
             ? "SELECT payload FROM jccb_gold_loans WHERE branch_code = $1 ORDER BY updated_at DESC;"
             : "SELECT payload FROM jccb_gold_loans ORDER BY updated_at DESC;";
-          const params = branchCode && branchCode !== "99" && branchCode !== "ALL" ? [String(branchCode)] : [];
+          const params = !isAll ? [String(bCode)] : [];
           const res = await window.PostgresSync.runNeonQuery(sql, params);
           if (res && res.rows) {
             return res.rows.map(r => r.payload || r);
@@ -111,7 +120,12 @@
       }
       try {
         const cache = JSON.parse(localStorage.getItem("tjccb_gold_loans_cache") || "{}");
-        return Object.values(cache);
+        let list = Object.values(cache);
+        if (!this.isHeadOffice()) {
+          const userBranch = String(this.getBranchId() || "").replace(/\D/g, '');
+          list = list.filter(l => String(l.branchCode || l.branchId || (l.branchName ? l.branchName.replace(/\D/g, '') : '') || "").replace(/\D/g, '') === userBranch);
+        }
+        return list;
       } catch (e) {
         return [];
       }

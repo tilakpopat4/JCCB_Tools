@@ -218,20 +218,30 @@ const OverdraftApp = {
         branchSelect.value = matchedVal;
       }
 
-      branchSelect.disabled = true;
-      branchSelect.style.pointerEvents = 'none';
-      branchSelect.style.backgroundColor = '#f1f5f9';
-      branchSelect.style.borderColor = '#cbd5e1';
-      branchSelect.style.color = '#0f172a';
-      branchSelect.style.cursor = 'not-allowed';
+      const isHO = Boolean(session.isAdmin || session.code === "99" || session.code === 99 || session.role === "Super Admin" || (session.name && session.name.toUpperCase().includes("HEAD OFFICE")));
+      
+      if (!isHO) {
+        branchSelect.disabled = true;
+        branchSelect.style.pointerEvents = 'none';
+        branchSelect.style.backgroundColor = '#f1f5f9';
+        branchSelect.style.borderColor = '#cbd5e1';
+        branchSelect.style.color = '#0f172a';
+        branchSelect.style.cursor = 'not-allowed';
 
-      const label = document.querySelector('label[for="branchSelect"]');
-      if (label && !document.getElementById('branchLockBadge')) {
-        const badge = document.createElement('span');
-        badge.id = 'branchLockBadge';
-        badge.className = 'ml-2 text-[10px] font-black px-2 py-0.5 rounded bg-slate-900 text-amber-300 border border-amber-400 shadow-sm inline-flex items-center gap-1';
-        badge.innerHTML = `🔒 LOCKED: ${session.code || '99'} ${session.name || 'HEAD OFFICE'} (${session.role || 'User'})`;
-        label.appendChild(badge);
+        const label = document.querySelector('label[for="branchSelect"]');
+        if (label && !document.getElementById('branchLockBadge')) {
+          const badge = document.createElement('span');
+          badge.id = 'branchLockBadge';
+          badge.className = 'ml-2 text-[10px] font-black px-2 py-0.5 rounded bg-slate-900 text-amber-300 border border-amber-400 shadow-sm inline-flex items-center gap-1';
+          badge.innerHTML = `🔒 LOCKED: ${session.code || '99'} ${session.name || 'HEAD OFFICE'} (${session.role || 'User'})`;
+          label.appendChild(badge);
+        }
+      } else {
+        branchSelect.disabled = false;
+        branchSelect.style.pointerEvents = 'auto';
+        branchSelect.style.backgroundColor = '#ffffff';
+        branchSelect.style.borderColor = '#f59e0b';
+        branchSelect.style.cursor = 'pointer';
       }
     }
 
@@ -737,14 +747,37 @@ const OverdraftApp = {
     const search = (document.getElementById('searchRegister')?.value || '').trim().toLowerCase();
     const filterBranch = (document.getElementById('filterBranch')?.value || '').trim().toLowerCase();
 
+    const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
+    const userBranch = String(this.currentSession ? this.currentSession.code : '99').replace(/\D/g, '').padStart(2, '0');
+
+    // Auto lock the branch filter in UI if not HO
+    const filterBranchEl = document.getElementById('filterBranch');
+    if (filterBranchEl) {
+      if (!isHO) {
+        filterBranchEl.value = this.currentSession.name || userBranch;
+        filterBranchEl.disabled = true;
+        filterBranchEl.classList.add('bg-slate-100', 'cursor-not-allowed');
+      } else {
+        filterBranchEl.disabled = false;
+        filterBranchEl.classList.remove('bg-slate-100', 'cursor-not-allowed');
+      }
+    }
+
     const filtered = allRecords.filter(r => {
       const matchSearch = !search || 
         (r.applicant1.name && r.applicant1.name.toLowerCase().includes(search)) ||
         (r.applicant1.id && r.applicant1.id.toLowerCase().includes(search)) ||
         (r.savingAccNo && r.savingAccNo.toLowerCase().includes(search)) ||
-        (r.fdReceipts && r.fdReceipts.some(f => f.certNo.toLowerCase().includes(search)));
+        (r.fdReceipts && r.fdReceipts.some(f => f.certNo && f.certNo.toLowerCase().includes(search)));
 
-      const matchBranch = !filterBranch || (r.branchName && r.branchName.toLowerCase().includes(filterBranch));
+      let matchBranch = true;
+      if (!isHO) {
+        const rBranch = String(r.branchCode || (r.branchName ? r.branchName.replace(/\D/g, '') : '') || '').padStart(2, '0');
+        matchBranch = (rBranch === userBranch) || (r.branchName && r.branchName.toUpperCase().includes((this.currentSession.name || '').toUpperCase()));
+      } else if (filterBranch) {
+        matchBranch = (r.branchName && r.branchName.toLowerCase().includes(filterBranch));
+      }
+
       return matchSearch && matchBranch;
     });
 
@@ -755,7 +788,7 @@ const OverdraftApp = {
         <tr>
           <td colspan="8" class="p-8 text-center text-slate-400 font-bold text-xs">
             <i data-lucide="file-question" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
-            કોઈ ઓવરડ્રાફ્ટ લોન રેકોર્ડ મળેલ નથી.
+            ${isHO ? 'કોઈ ઓવરડ્રાફ્ટ લોન રેકોર્ડ મળેલ નથી.' : 'તમારી શાખા માટે કોઈ ઓવરડ્રાફ્ટ લોન રેકોર્ડ મળેલ નથી.'}
           </td>
         </tr>
       `;
@@ -802,7 +835,17 @@ const OverdraftApp = {
 
   // Update Report Metrics
   updateReportMetrics() {
-    const records = Object.values(this.getAllRecords());
+    const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
+    const userBranch = String(this.currentSession ? this.currentSession.code : '99').replace(/\D/g, '').padStart(2, '0');
+
+    let records = Object.values(this.getAllRecords());
+    if (!isHO) {
+      records = records.filter(r => {
+        const rBranch = String(r.branchCode || (r.branchName ? r.branchName.replace(/\D/g, '') : '') || '').padStart(2, '0');
+        return (rBranch === userBranch) || (r.branchName && r.branchName.toUpperCase().includes((this.currentSession.name || '').toUpperCase()));
+      });
+    }
+
     const totalApps = records.length;
     let totalLoan = 0;
     let totalFd = 0;
