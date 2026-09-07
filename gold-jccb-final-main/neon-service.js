@@ -124,7 +124,9 @@
     deleteLoan: async function (loanId) {
       if (window.PostgresSync && window.PostgresSync.deleteGoldLoan) {
         try {
-          await window.PostgresSync.deleteGoldLoan(loanId);
+          const bCode = this.getBranchId() || '99';
+          const user = (this.getActiveSession && this.getActiveSession().name) || 'User';
+          await window.PostgresSync.deleteGoldLoan(loanId, bCode, user);
         } catch (e) {
           console.warn("[Neon Cloud] Delete loan sync error:", e);
         }

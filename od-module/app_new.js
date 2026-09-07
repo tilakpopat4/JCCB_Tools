@@ -676,8 +676,10 @@ const OverdraftApp = {
     const all = this.getAllRecords();
     delete all[id];
     localStorage.setItem('tjccb_od_loans', JSON.stringify(all));
+    const bCode = this.currentSession ? (this.currentSession.code || '99') : '99';
+    const user = this.currentSession ? (this.currentSession.name || 'User') : 'User';
     if (window.PostgresSync && window.PostgresSync.deleteODLoan) {
-      window.PostgresSync.deleteODLoan(id).catch(() => {});
+      window.PostgresSync.deleteODLoan(id, bCode, user).catch(() => {});
     }
     this.updateRegisterTable();
     this.updateReportMetrics();

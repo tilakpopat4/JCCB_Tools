@@ -1920,8 +1920,10 @@ const FDApp = {
     let savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
     delete savedList[id];
     localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
+    const bCode = this.currentSession ? (this.currentSession.code || '99') : '99';
+    const user = this.currentSession ? (this.currentSession.name || 'User') : 'User';
     if (window.PostgresSync && window.PostgresSync.deleteFDForm) {
-      window.PostgresSync.deleteFDForm(id).catch(() => {});
+      window.PostgresSync.deleteFDForm(id, bCode, user).catch(() => {});
     }
     this.renderRegisterTable();
     this.updateRegisterBadgeCount();

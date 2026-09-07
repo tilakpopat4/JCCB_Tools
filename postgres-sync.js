@@ -351,8 +351,9 @@ const PostgresSync = (function () {
   }
 
   // ==========================================
-  // 1. GOLD MODULE DUAL-WRITE & SYNC
+  // 1. GOLD LOAN MODULE — jccb_gold_loans
   // ==========================================
+  // 1a. UPSERT on save
   async function syncGoldLoan(loan) {
     try {
       const id = String(loan.id || loan.loanNo || loan.proposalNo || Date.now()).trim();
@@ -368,18 +369,20 @@ const PostgresSync = (function () {
       const payload = { ...loan, id, branchCode, updatedAt: loan.updatedAt || new Date().toISOString() };
 
       const sql = `
-        INSERT INTO jccb_gold_loans (id, branch_code, loan_no, customer_name, phone, sanction_amount, sanction_date, status, payload, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        INSERT INTO jccb_gold_loans
+            (id, branch_code, loan_no, customer_name, phone, sanction_amount, sanction_date, status, payload, updated_at)
+        VALUES
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         ON CONFLICT (id) DO UPDATE SET
-          branch_code = EXCLUDED.branch_code,
-          loan_no = EXCLUDED.loan_no,
-          customer_name = EXCLUDED.customer_name,
-          phone = EXCLUDED.phone,
-          sanction_amount = EXCLUDED.sanction_amount,
-          sanction_date = EXCLUDED.sanction_date,
-          status = EXCLUDED.status,
-          payload = EXCLUDED.payload,
-          updated_at = NOW();
+            branch_code      = EXCLUDED.branch_code,
+            loan_no          = EXCLUDED.loan_no,
+            customer_name    = EXCLUDED.customer_name,
+            phone            = EXCLUDED.phone,
+            sanction_amount  = EXCLUDED.sanction_amount,
+            sanction_date    = EXCLUDED.sanction_date,
+            status           = EXCLUDED.status,
+            payload          = EXCLUDED.payload,
+            updated_at       = NOW();
       `;
       await runNeonQuery(sql, [id, branchCode, loanNo, customerName, phone, sanctionAmount, sanctionDate, status, JSON.stringify(payload)]);
       return true;
@@ -389,14 +392,16 @@ const PostgresSync = (function () {
     }
   }
 
-  async function deleteGoldLoan(loanId) {
+  // 4a & 4b. Delete broadcast for Gold Loans
+  async function deleteGoldLoan(loanId, branchCode = "99", deletedBy = "User") {
     try {
       const id = String(loanId).trim();
-      await runNeonQuery("DELETE FROM jccb_gold_loans WHERE id = $1;", [id]);
+      const delId = `DEL_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       await runNeonQuery(
-        "INSERT INTO jccb_deleted_records (id, module, deleted_at) VALUES ($1, 'gold', NOW()) ON CONFLICT (id) DO UPDATE SET deleted_at = NOW();",
-        [id]
+        "INSERT INTO jccb_deleted_records (id, record_id, table_name, branch_code, deleted_by, deleted_at) VALUES ($1, $2, 'jccb_gold_loans', $3, $4, NOW());",
+        [delId, id, String(branchCode || "99"), String(deletedBy || "User")]
       );
+      await runNeonQuery("DELETE FROM jccb_gold_loans WHERE id = $1;", [id]);
       return true;
     } catch (e) {
       console.warn("[PostgresSync] Delete gold loan error:", e);
@@ -411,19 +416,39 @@ const PostgresSync = (function () {
     return !branchCode || digits === '99' || digits === '' || raw === 'ALL' || raw === 'HO' || raw === 'HEAD OFFICE' || raw.includes('HEAD OFFICE');
   }
 
-  async function fetchGoldLoans(branchCode = null) {
+  // 1b & 1c. POLL Gold Loans
+  async function fetchGoldLoans(branchCode = null, sinceTimestamp = null) {
     try {
       const isHO = isHeadOfficeQuery(branchCode);
       let sql, params;
       if (isHO) {
-        sql = "SELECT payload FROM jccb_gold_loans ORDER BY updated_at DESC;";
-        params = [];
+        if (sinceTimestamp) {
+          sql = `SELECT id, branch_code, loan_no, customer_name, phone, sanction_amount,
+                        sanction_date, status, payload, updated_at
+                 FROM jccb_gold_loans
+                 WHERE updated_at > $1
+                 ORDER BY updated_at ASC;`;
+          params = [sinceTimestamp];
+        } else {
+          sql = "SELECT id, branch_code, loan_no, customer_name, phone, sanction_amount, sanction_date, status, payload, updated_at FROM jccb_gold_loans ORDER BY updated_at DESC;";
+          params = [];
+        }
       } else {
         let bCode = resolveBranchCode(branchCode);
-        sql = "SELECT payload FROM jccb_gold_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
-        params = [bCode];
+        if (sinceTimestamp) {
+          sql = `SELECT id, branch_code, loan_no, customer_name, phone, sanction_amount,
+                        sanction_date, status, payload, updated_at
+                 FROM jccb_gold_loans
+                 WHERE branch_code = $1
+                   AND updated_at > $2
+                 ORDER BY updated_at ASC;`;
+          params = [bCode, sinceTimestamp];
+        } else {
+          sql = "SELECT id, branch_code, loan_no, customer_name, phone, sanction_amount, sanction_date, status, payload, updated_at FROM jccb_gold_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
+          params = [bCode];
+        }
       }
-      console.log(`⚡ [PostgresSync] fetchGoldLoans query: "${sql}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
+      console.log(`⚡ [PostgresSync] fetchGoldLoans query: "${sql.replace(/\s+/g, ' ')}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
       const res = await runNeonQuery(sql, params);
       const rows = (res && res.rows) ? res.rows.map(r => {
         let payload = r.payload || r;
@@ -503,8 +528,9 @@ const PostgresSync = (function () {
   }
 
   // ==========================================
-  // 2. FD MODULE DUAL-WRITE & SYNC
+  // 2. FD MODULE — jccb_fd_forms
   // ==========================================
+  // 2a. UPSERT on save
   async function syncFDForm(form) {
     try {
       const id = String(form.formNo || form.id || Date.now()).trim();
@@ -520,17 +546,20 @@ const PostgresSync = (function () {
       const payload = { ...form, id, branchCode, updatedAt: form.updatedAt || new Date().toISOString() };
 
       const sql = `
-        INSERT INTO jccb_fd_forms (id, branch_code, form_no, customer_name, deposit_amount, interest_rate, tenure_months, status, payload, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        INSERT INTO jccb_fd_forms
+            (id, branch_code, form_no, customer_name, deposit_amount, interest_rate, tenure_months, status, payload, updated_at)
+        VALUES
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         ON CONFLICT (id) DO UPDATE SET
-          branch_code = EXCLUDED.branch_code,
-          customer_name = EXCLUDED.customer_name,
-          deposit_amount = EXCLUDED.deposit_amount,
-          interest_rate = EXCLUDED.interest_rate,
-          tenure_months = EXCLUDED.tenure_months,
-          status = EXCLUDED.status,
-          payload = EXCLUDED.payload,
-          updated_at = NOW();
+            branch_code     = EXCLUDED.branch_code,
+            form_no         = EXCLUDED.form_no,
+            customer_name   = EXCLUDED.customer_name,
+            deposit_amount  = EXCLUDED.deposit_amount,
+            interest_rate   = EXCLUDED.interest_rate,
+            tenure_months   = EXCLUDED.tenure_months,
+            status          = EXCLUDED.status,
+            payload         = EXCLUDED.payload,
+            updated_at      = NOW();
       `;
       await runNeonQuery(sql, [id, branchCode, formNo, customerName, depositAmount, interestRate, tenureMonths, status, JSON.stringify(payload)]);
       return true;
@@ -540,14 +569,16 @@ const PostgresSync = (function () {
     }
   }
 
-  async function deleteFDForm(formId) {
+  // 4a & 4b. Delete broadcast for FD Forms
+  async function deleteFDForm(formId, branchCode = "99", deletedBy = "User") {
     try {
       const id = String(formId).trim();
-      await runNeonQuery("DELETE FROM jccb_fd_forms WHERE id = $1;", [id]);
+      const delId = `DEL_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       await runNeonQuery(
-        "INSERT INTO jccb_deleted_records (id, module, deleted_at) VALUES ($1, 'fd', NOW()) ON CONFLICT (id) DO UPDATE SET deleted_at = NOW();",
-        [id]
+        "INSERT INTO jccb_deleted_records (id, record_id, table_name, branch_code, deleted_by, deleted_at) VALUES ($1, $2, 'jccb_fd_forms', $3, $4, NOW());",
+        [delId, id, String(branchCode || "99"), String(deletedBy || "User")]
       );
+      await runNeonQuery("DELETE FROM jccb_fd_forms WHERE id = $1;", [id]);
       return true;
     } catch (e) {
       console.warn("[PostgresSync] Delete FD form error:", e);
@@ -555,19 +586,39 @@ const PostgresSync = (function () {
     }
   }
 
-  async function fetchFDForms(branchCode = null) {
+  // 2b & 2c. POLL FD Forms
+  async function fetchFDForms(branchCode = null, sinceTimestamp = null) {
     try {
       const isHO = isHeadOfficeQuery(branchCode);
       let sql, params;
       if (isHO) {
-        sql = "SELECT payload FROM jccb_fd_forms ORDER BY updated_at DESC;";
-        params = [];
+        if (sinceTimestamp) {
+          sql = `SELECT id, branch_code, form_no, customer_name, deposit_amount, interest_rate,
+                        tenure_months, status, payload, updated_at
+                 FROM jccb_fd_forms
+                 WHERE updated_at > $1
+                 ORDER BY updated_at ASC;`;
+          params = [sinceTimestamp];
+        } else {
+          sql = "SELECT id, branch_code, form_no, customer_name, deposit_amount, interest_rate, tenure_months, status, payload, updated_at FROM jccb_fd_forms ORDER BY updated_at DESC;";
+          params = [];
+        }
       } else {
         let bCode = resolveBranchCode(branchCode);
-        sql = "SELECT payload FROM jccb_fd_forms WHERE branch_code = $1 ORDER BY updated_at DESC;";
-        params = [bCode];
+        if (sinceTimestamp) {
+          sql = `SELECT id, branch_code, form_no, customer_name, deposit_amount, interest_rate,
+                        tenure_months, status, payload, updated_at
+                 FROM jccb_fd_forms
+                 WHERE branch_code = $1
+                   AND updated_at > $2
+                 ORDER BY updated_at ASC;`;
+          params = [bCode, sinceTimestamp];
+        } else {
+          sql = "SELECT id, branch_code, form_no, customer_name, deposit_amount, interest_rate, tenure_months, status, payload, updated_at FROM jccb_fd_forms WHERE branch_code = $1 ORDER BY updated_at DESC;";
+          params = [bCode];
+        }
       }
-      console.log(`⚡ [PostgresSync] fetchFDForms query: "${sql}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
+      console.log(`⚡ [PostgresSync] fetchFDForms query: "${sql.replace(/\s+/g, ' ')}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
       const res = await runNeonQuery(sql, params);
       const rows = (res && res.rows) ? res.rows.map(r => {
         let payload = r.payload || r;
@@ -585,8 +636,9 @@ const PostgresSync = (function () {
   }
 
   // ==========================================
-  // 3. OD MODULE DUAL-WRITE & SYNC
+  // 3. OD MODULE — jccb_od_loans
   // ==========================================
+  // 3a. UPSERT on save
   async function syncODLoan(od) {
     try {
       const id = String(od.accountNo || od.id || Date.now()).trim();
@@ -601,16 +653,19 @@ const PostgresSync = (function () {
       const payload = { ...od, id, branchCode, updatedAt: od.updatedAt || new Date().toISOString() };
 
       const sql = `
-        INSERT INTO jccb_od_loans (id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no, status, payload, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        INSERT INTO jccb_od_loans
+            (id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no, status, payload, updated_at)
+        VALUES
+            ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
         ON CONFLICT (id) DO UPDATE SET
-          branch_code = EXCLUDED.branch_code,
-          customer_name = EXCLUDED.customer_name,
-          limit_amount = EXCLUDED.limit_amount,
-          fd_receipt_no = EXCLUDED.fd_receipt_no,
-          status = EXCLUDED.status,
-          payload = EXCLUDED.payload,
-          updated_at = NOW();
+            branch_code    = EXCLUDED.branch_code,
+            account_no     = EXCLUDED.account_no,
+            customer_name  = EXCLUDED.customer_name,
+            limit_amount   = EXCLUDED.limit_amount,
+            fd_receipt_no  = EXCLUDED.fd_receipt_no,
+            status         = EXCLUDED.status,
+            payload        = EXCLUDED.payload,
+            updated_at     = NOW();
       `;
       await runNeonQuery(sql, [id, branchCode, accountNo, customerName, limitAmount, fdReceiptNo, status, JSON.stringify(payload)]);
       return true;
@@ -620,14 +675,16 @@ const PostgresSync = (function () {
     }
   }
 
-  async function deleteODLoan(odId) {
+  // 4a & 4b. Delete broadcast for OD Loans
+  async function deleteODLoan(odId, branchCode = "99", deletedBy = "User") {
     try {
       const id = String(odId).trim();
-      await runNeonQuery("DELETE FROM jccb_od_loans WHERE id = $1;", [id]);
+      const delId = `DEL_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       await runNeonQuery(
-        "INSERT INTO jccb_deleted_records (id, module, deleted_at) VALUES ($1, 'od', NOW()) ON CONFLICT (id) DO UPDATE SET deleted_at = NOW();",
-        [id]
+        "INSERT INTO jccb_deleted_records (id, record_id, table_name, branch_code, deleted_by, deleted_at) VALUES ($1, $2, 'jccb_od_loans', $3, $4, NOW());",
+        [delId, id, String(branchCode || "99"), String(deletedBy || "User")]
       );
+      await runNeonQuery("DELETE FROM jccb_od_loans WHERE id = $1;", [id]);
       return true;
     } catch (e) {
       console.warn("[PostgresSync] Delete OD loan error:", e);
@@ -635,19 +692,39 @@ const PostgresSync = (function () {
     }
   }
 
-  async function fetchODLoans(branchCode = null) {
+  // 3b & 3c. POLL OD Loans
+  async function fetchODLoans(branchCode = null, sinceTimestamp = null) {
     try {
       const isHO = isHeadOfficeQuery(branchCode);
       let sql, params;
       if (isHO) {
-        sql = "SELECT payload FROM jccb_od_loans ORDER BY updated_at DESC;";
-        params = [];
+        if (sinceTimestamp) {
+          sql = `SELECT id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no,
+                        status, payload, updated_at
+                 FROM jccb_od_loans
+                 WHERE updated_at > $1
+                 ORDER BY updated_at ASC;`;
+          params = [sinceTimestamp];
+        } else {
+          sql = "SELECT id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no, status, payload, updated_at FROM jccb_od_loans ORDER BY updated_at DESC;";
+          params = [];
+        }
       } else {
         let bCode = resolveBranchCode(branchCode);
-        sql = "SELECT payload FROM jccb_od_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
-        params = [bCode];
+        if (sinceTimestamp) {
+          sql = `SELECT id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no,
+                        status, payload, updated_at
+                 FROM jccb_od_loans
+                 WHERE branch_code = $1
+                   AND updated_at > $2
+                 ORDER BY updated_at ASC;`;
+          params = [bCode, sinceTimestamp];
+        } else {
+          sql = "SELECT id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no, status, payload, updated_at FROM jccb_od_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
+          params = [bCode];
+        }
       }
-      console.log(`⚡ [PostgresSync] fetchODLoans query: "${sql}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
+      console.log(`⚡ [PostgresSync] fetchODLoans query: "${sql.replace(/\s+/g, ' ')}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
       const res = await runNeonQuery(sql, params);
       const rows = (res && res.rows) ? res.rows.map(r => {
         let payload = r.payload || r;
@@ -665,25 +742,50 @@ const PostgresSync = (function () {
   }
 
   // ==========================================
-  // 4. DELETED RECORDS & AUDIT ACTIVITY
+  // 4. DELETE BROADCAST — shared across all 3 modules
   // ==========================================
-  async function fetchDeletedRecordIds(moduleName) {
+  // 4c. Poll Deletions
+  async function fetchDeletedRecordIds(tableName = 'jccb_fd_forms', sinceTimestamp = '1970-01-01') {
     try {
-      const res = await runNeonQuery("SELECT id FROM jccb_deleted_records WHERE module = $1;", [moduleName]);
-      return (res && res.rows) ? res.rows.map(r => r.id) : [];
+      let tbl = tableName;
+      if (tbl === 'gold') tbl = 'jccb_gold_loans';
+      if (tbl === 'fd') tbl = 'jccb_fd_forms';
+      if (tbl === 'od') tbl = 'jccb_od_loans';
+
+      const since = sinceTimestamp || '1970-01-01';
+      const sql = `
+        SELECT record_id
+        FROM jccb_deleted_records
+        WHERE table_name = $1
+          AND deleted_at > $2
+        ORDER BY deleted_at ASC;
+      `;
+      const res = await runNeonQuery(sql, [tbl, since]);
+      return (res && res.rows) ? res.rows.map(r => r.record_id || r.id) : [];
     } catch (e) {
       return [];
     }
   }
 
-  async function logActivity(branchCode, module, action, recordId, summary) {
+  // ==========================================
+  // 5. BRANCH ACTIVITY HEARTBEAT
+  // ==========================================
+  async function logActivity(branchCode, deviceId, userName, action, module, metadataObj = {}) {
     try {
       const id = `ACT_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
       const sql = `
-        INSERT INTO jccb_branch_activity (id, branch_code, module, action, record_id, summary, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW());
+        INSERT INTO jccb_branch_activity (id, branch_code, device_id, user_name, action, module, payload, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW());
       `;
-      await runNeonQuery(sql, [id, String(branchCode || "99"), String(module || "SYSTEM"), String(action || "INFO"), String(recordId || ""), String(summary || "")]);
+      await runNeonQuery(sql, [
+        id,
+        String(branchCode || "99"),
+        String(deviceId || "BROWSER_CLIENT"),
+        String(userName || "SYSTEM"),
+        String(action || "INFO"),
+        String(module || "gold"),
+        JSON.stringify(metadataObj || {})
+      ]);
       return true;
     } catch (e) {
       return false;
