@@ -151,57 +151,37 @@ const OverdraftApp = {
     this.updateReportMetrics();
     this.setupSessionAndBranchLock();
     renderBankLogos();
-    this.startNeonDeviceSync();
+    this.startRealtimeCloudSync();
   },
 
-  async startNeonDeviceSync() {
-    const pullCloudOD = async () => {
-      if (window.PostgresSync && window.PostgresSync.fetchODLoans) {
-        try {
-          const [cloudLoans, deletedIds] = await Promise.all([
-            window.PostgresSync.fetchODLoans().catch(err => {
-              console.error("[OD Sync] Error fetching OD loans from Neon:", err);
-              return [];
-            }),
-            (window.PostgresSync.fetchDeletedRecordIds ? window.PostgresSync.fetchDeletedRecordIds('od') : Promise.resolve([])).catch(() => [])
-          ]);
-
+  async startRealtimeCloudSync() {
+    // 1. Firebase Firestore Realtime Subscription
+    if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToODLoans === 'function') {
+      try {
+        window.FirebaseSync.subscribeToODLoans((cloudLoans) => {
           let allRecords = this.getAllRecords();
-          const deletedSet = new Set(deletedIds || []);
           let changed = false;
 
-          // 1. Remove locally any record deleted in cloud
-          deletedSet.forEach(delId => {
-            if (allRecords[delId]) {
-              delete allRecords[delId];
-              changed = true;
-            }
-          });
-
-          // 2. Merge cloud records
-          if (Array.isArray(cloudLoans) && cloudLoans.length > 0) {
+          if (Array.isArray(cloudLoans)) {
             cloudLoans.forEach(item => {
-              if (item && item.id && !deletedSet.has(String(item.id))) {
+              if (item && item.id) {
                 const local = allRecords[item.id];
-                if (!local) {
+                if (!local || (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt)))) {
                   allRecords[item.id] = item;
                   changed = true;
-                } else if (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt))) {
-                  allRecords[item.id] = { ...local, ...item };
-                  changed = true;
                 }
               }
             });
 
-            // 3. Dual-write any local loans missing in cloud
-            Object.values(allRecords).forEach(localOD => {
-              if (localOD && localOD.id && !deletedSet.has(String(localOD.id))) {
-                const inCloud = cloudLoans.some(cf => String(cf.id) === String(localOD.id));
-                if (!inCloud && window.PostgresSync.syncODLoan) {
-                  window.PostgresSync.syncODLoan(localOD).catch(() => { });
+            const branchInfo = window.FirebaseSync.getCurrentBranchInfo();
+            if (branchInfo.isHeadOffice) {
+              cloudLoans.forEach(cl => {
+                if (cl && cl.id && !allRecords[cl.id]) {
+                  allRecords[cl.id] = cl;
+                  changed = true;
                 }
-              }
-            });
+              });
+            }
           }
 
           if (changed || Object.keys(allRecords).length > 0) {
@@ -209,14 +189,65 @@ const OverdraftApp = {
             this.updateRegisterTable();
             this.updateReportMetrics();
           }
-        } catch (e) {
-          console.warn("[OD Sync] Cloud pull notice:", e);
-        }
+        });
+
+        // Listen for cross-device deletions via Firestore
+        window.FirebaseSync.subscribeToDeletedRecords('odLoans', (deletedId) => {
+          let allRecords = this.getAllRecords();
+          if (allRecords[deletedId]) {
+            delete allRecords[deletedId];
+            localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
+            this.updateRegisterTable();
+            this.updateReportMetrics();
+          }
+        });
+      } catch (fbErr) {
+        console.warn("[OD Realtime Sync] Firebase subscription error:", fbErr);
+      }
+    }
+
+    // 2. Neon / PostgreSQL fallback poll
+    const pullCloudOD = async () => {
+      if (window.PostgresSync && window.PostgresSync.fetchODLoans) {
+        try {
+          const [cloudLoans, deletedIds] = await Promise.all([
+            window.PostgresSync.fetchODLoans().catch(() => []),
+            (window.PostgresSync.fetchDeletedRecordIds ? window.PostgresSync.fetchDeletedRecordIds('od') : Promise.resolve([])).catch(() => [])
+          ]);
+
+          let allRecords = this.getAllRecords();
+          const deletedSet = new Set(deletedIds || []);
+          let changed = false;
+
+          deletedSet.forEach(delId => {
+            if (allRecords[delId]) {
+              delete allRecords[delId];
+              changed = true;
+            }
+          });
+
+          if (Array.isArray(cloudLoans) && cloudLoans.length > 0) {
+            cloudLoans.forEach(item => {
+              if (item && item.id && !deletedSet.has(String(item.id))) {
+                const local = allRecords[item.id];
+                if (!local || (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt)))) {
+                  allRecords[item.id] = { ...local, ...item };
+                  changed = true;
+                }
+              }
+            });
+          }
+
+          if (changed) {
+            localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
+            this.updateRegisterTable();
+            this.updateReportMetrics();
+          }
+        } catch (e) { }
       }
     };
     this.pullCloudOD = pullCloudOD;
     pullCloudOD();
-    setInterval(pullCloudOD, 10000);
   },
 
   setupSessionAndBranchLock() {
@@ -636,18 +667,26 @@ const OverdraftApp = {
     allRecords[recordId] = record;
     localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
 
-    // Cloud Database Dual-Write Sync (Neon Postgres)
+    // Cloud Realtime Push (Firebase Firestore & Neon)
     let syncSuccess = false;
-    if (window.PostgresSync && typeof window.PostgresSync.syncODLoan === 'function') {
+    if (window.FirebaseSync && typeof window.FirebaseSync.saveODLoan === 'function') {
       try {
-        syncSuccess = await window.PostgresSync.syncODLoan(record);
-        console.log(`⚡ [OD Save] Neon cloud sync status for ${recordId}:`, syncSuccess ? "SUCCESS" : "FAILED");
-      } catch(e) {
-        console.error("❌ [OD Save] Neon cloud sync error:", e);
+        await window.FirebaseSync.saveODLoan(record);
+        syncSuccess = true;
+        console.log(`⚡ [OD Save] Firebase Firestore sync status for ${recordId}: SUCCESS`);
+      } catch (fbErr) {
+        console.warn("⚠️ [OD Save] Firebase sync warning:", fbErr);
       }
     }
 
-    alert(`✓ ઓવરડ્રાફ્ટ લોન રેકોર્ડ સફળતાપૂર્વક સેવ થયો!\nગ્રાહકનું નામ: ${cust1Name.toUpperCase()}\nલોન રકમ: ₹ ${loanAmount.toLocaleString('en-IN')}${syncSuccess ? '\n⚡ Synced to Neon Cloud' : ''}`);
+    if (window.PostgresSync && typeof window.PostgresSync.syncODLoan === 'function') {
+      try {
+        const pgRes = await window.PostgresSync.syncODLoan(record);
+        if (pgRes) syncSuccess = true;
+      } catch(e) { }
+    }
+
+    alert(`✓ ઓવરડ્રાફ્ટ લોન રેકોર્ડ સફળતાપૂર્વક સેવ થયો!\nગ્રાહકનું નામ: ${cust1Name.toUpperCase()}\nલોન રકમ: ₹ ${loanAmount.toLocaleString('en-IN')}${syncSuccess ? '\n⚡ Synced in Real-Time to Cloud' : ''}`);
     
     this.currentRecordId = null;
     this.resetForm();
@@ -678,6 +717,9 @@ const OverdraftApp = {
     localStorage.setItem('tjccb_od_loans', JSON.stringify(all));
     const bCode = this.currentSession ? (this.currentSession.code || '99') : '99';
     const user = this.currentSession ? (this.currentSession.name || 'User') : 'User';
+    if (window.FirebaseSync && typeof window.FirebaseSync.deleteODLoan === 'function') {
+      window.FirebaseSync.deleteODLoan(id, bCode, user).catch(() => {});
+    }
     if (window.PostgresSync && window.PostgresSync.deleteODLoan) {
       window.PostgresSync.deleteODLoan(id, bCode, user).catch(() => {});
     }

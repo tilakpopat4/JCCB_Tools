@@ -138,18 +138,78 @@ const FDApp = {
     this.setupStrictEnglishUppercaseInputs();
     this.setupSessionAndBranchLock();
     this.updateRegisterBadgeCount();
-    this.startNeonDeviceSync();
+    this.startRealtimeCloudSync();
   },
 
-  async startNeonDeviceSync() {
+  async startRealtimeCloudSync() {
+    // 1. Firebase Firestore Realtime Subscription (Push-based instant updates)
+    if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToFDForms === 'function') {
+      try {
+        window.FirebaseSync.subscribeToFDForms((cloudForms) => {
+          let savedList = {};
+          try {
+            savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
+          } catch (e) { }
+
+          let changed = false;
+          if (Array.isArray(cloudForms)) {
+            cloudForms.forEach(item => {
+              if (item && item.id) {
+                const local = savedList[item.id];
+                if (!local || (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt)))) {
+                  savedList[item.id] = item;
+                  changed = true;
+                }
+              }
+            });
+
+            // If Head Office, reflect all branch records directly
+            const branchInfo = window.FirebaseSync.getCurrentBranchInfo();
+            if (branchInfo.isHeadOffice) {
+              cloudForms.forEach(cf => {
+                if (cf && cf.id && !savedList[cf.id]) {
+                  savedList[cf.id] = cf;
+                  changed = true;
+                }
+              });
+            }
+          }
+
+          if (changed || Object.keys(savedList).length > 0) {
+            localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
+            this.updateRegisterBadgeCount();
+            if (typeof this.renderRegisterTable === 'function' && this.currentView === 'register') {
+              this.renderRegisterTable();
+            }
+          }
+        });
+
+        // Listen for cross-device deletions via Firestore
+        window.FirebaseSync.subscribeToDeletedRecords('fdForms', (deletedId) => {
+          let savedList = {};
+          try {
+            savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
+          } catch (e) { }
+          if (savedList[deletedId]) {
+            delete savedList[deletedId];
+            localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
+            this.updateRegisterBadgeCount();
+            if (typeof this.renderRegisterTable === 'function' && this.currentView === 'register') {
+              this.renderRegisterTable();
+            }
+          }
+        });
+      } catch (fbErr) {
+        console.warn("[FD Realtime Sync] Firebase subscription notice:", fbErr);
+      }
+    }
+
+    // 2. Neon / PostgreSQL fallback poll
     const pullCloudFD = async () => {
       if (window.PostgresSync && window.PostgresSync.fetchFDForms) {
         try {
           const [cloudForms, deletedIds] = await Promise.all([
-            window.PostgresSync.fetchFDForms().catch(err => {
-              console.error("[FD Sync] Error fetching FD forms from Neon:", err);
-              return [];
-            }),
+            window.PostgresSync.fetchFDForms().catch(() => []),
             (window.PostgresSync.fetchDeletedRecordIds ? window.PostgresSync.fetchDeletedRecordIds('fd') : Promise.resolve([])).catch(() => [])
           ]);
 
@@ -161,7 +221,6 @@ const FDApp = {
           const deletedSet = new Set(deletedIds || []);
           let changed = false;
 
-          // 1. Remove locally any record deleted in cloud
           deletedSet.forEach(delId => {
             if (savedList[delId]) {
               delete savedList[delId];
@@ -169,47 +228,30 @@ const FDApp = {
             }
           });
 
-          // 2. Merge cloud forms (non-destructive smart update)
           if (Array.isArray(cloudForms) && cloudForms.length > 0) {
             cloudForms.forEach(item => {
               if (item && item.id && !deletedSet.has(String(item.id))) {
                 const local = savedList[item.id];
-                if (!local) {
-                  savedList[item.id] = item;
-                  changed = true;
-                } else if (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt))) {
+                if (!local || (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt)))) {
                   savedList[item.id] = { ...local, ...item };
                   changed = true;
                 }
               }
             });
-
-            // 3. Dual-write any local forms missing in cloud
-            Object.values(savedList).forEach(localForm => {
-              if (localForm && localForm.id && !deletedSet.has(String(localForm.id))) {
-                const inCloud = cloudForms.some(cf => String(cf.id) === String(localForm.id));
-                if (!inCloud && window.PostgresSync.syncFDForm) {
-                  window.PostgresSync.syncFDForm(localForm).catch(() => { });
-                }
-              }
-            });
           }
 
-          if (changed || Object.keys(savedList).length > 0) {
+          if (changed) {
             localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
             this.updateRegisterBadgeCount();
             if (typeof this.renderRegisterTable === 'function' && this.currentView === 'register') {
               this.renderRegisterTable();
             }
           }
-        } catch (e) {
-          console.warn("[FD Sync] Cloud pull notice:", e);
-        }
+        } catch (e) { }
       }
     };
     this.pullCloudFD = pullCloudFD;
     pullCloudFD();
-    setInterval(pullCloudFD, 10000);
   },
 
   setupSessionAndBranchLock() {
@@ -1532,18 +1574,26 @@ const FDApp = {
     savedList[formId] = recordPayload;
     localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
     
-    // Cloud Database Dual-Write Sync (Neon Postgres)
+    // Cloud Realtime Push (Firebase Firestore & Neon)
     let syncSuccess = false;
-    if (window.PostgresSync && typeof window.PostgresSync.syncFDForm === 'function') {
+    if (window.FirebaseSync && typeof window.FirebaseSync.saveFDForm === 'function') {
       try {
-        syncSuccess = await window.PostgresSync.syncFDForm(recordPayload);
-        console.log(`⚡ [FD Save] Neon cloud sync status for ${formId}:`, syncSuccess ? "SUCCESS" : "FAILED");
-      } catch(e) {
-        console.error("❌ [FD Save] Neon cloud sync error:", e);
+        await window.FirebaseSync.saveFDForm(recordPayload);
+        syncSuccess = true;
+        console.log(`⚡ [FD Save] Firebase Firestore sync status for ${formId}: SUCCESS`);
+      } catch (fbErr) {
+        console.warn("⚠️ [FD Save] Firebase sync warning:", fbErr);
       }
     }
 
-    alert(`✓ Record saved successfully!\nCustomer: ${custName}\nRef ID: ${formId}${syncSuccess ? '\n⚡ Synced to Neon Cloud' : ''}`);
+    if (window.PostgresSync && typeof window.PostgresSync.syncFDForm === 'function') {
+      try {
+        const pgRes = await window.PostgresSync.syncFDForm(recordPayload);
+        if (pgRes) syncSuccess = true;
+      } catch(e) { }
+    }
+
+    alert(`✓ Record saved successfully!\nCustomer: ${custName}\nRef ID: ${formId}${syncSuccess ? '\n⚡ Synced in Real-Time to Cloud' : ''}`);
     
     // Clear form so next time user opens FD Entry Form, it is fresh & blank
     this.clearFormCleanly();
@@ -1922,6 +1972,9 @@ const FDApp = {
     localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
     const bCode = this.currentSession ? (this.currentSession.code || '99') : '99';
     const user = this.currentSession ? (this.currentSession.name || 'User') : 'User';
+    if (window.FirebaseSync && typeof window.FirebaseSync.deleteFDForm === 'function') {
+      window.FirebaseSync.deleteFDForm(id, bCode, user).catch(() => {});
+    }
     if (window.PostgresSync && window.PostgresSync.deleteFDForm) {
       window.PostgresSync.deleteFDForm(id, bCode, user).catch(() => {});
     }

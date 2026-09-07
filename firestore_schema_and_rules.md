@@ -1,3 +1,77 @@
+# JCCB Tools Suite — Firebase / Firestore Schema & Security Rules
+### Branch-scoped access + Head Office (99) admin override across all 3 modules
+
+This mirrors the same entities you already have in Neon (`jccb_gold_loans`,
+`jccb_fd_forms`, `jccb_od_loans`, + master tables), redesigned for Firestore's
+document model with **custom-claim-based** branch/role security — this is the
+part Firestore rules can't do without: you can't check "is this user Head
+Office" from a client-writable field, it has to come from a server-issued
+auth token claim, or any user could just edit their own branchCode and see
+everyone's data.
+
+---
+
+## 1. Collection Structure
+
+```
+/branches/{branchCode}                → master branch list (01–18, 99)
+/users/{uid}                          → user profile (mirrors custom claims for UI display)
+/goldLoans/{loanId}
+/fdForms/{formId}
+/odLoans/{odId}
+/goldRates/{dateString}               → e.g. "2026-09-07"
+/goldSettings/{settingKey}
+/goldValuers/{valuerId}
+/goldCustomers/{customerId}
+/deletedRecords/{deletionId}          → cross-device delete broadcast (all 3 modules)
+/branchActivity/{activityId}          → audit trail / heartbeat log
+```
+
+Every operational record (`goldLoans`, `fdForms`, `odLoans`) carries:
+```
+{
+  branchCode: "01",        // REQUIRED, immutable after create, 2-digit string
+  status: "ACTIVE",
+  payload: { ...fullFormData },   // same JSONB-equivalent as Neon
+  createdAt: <server timestamp>,
+  updatedAt: <server timestamp>,
+  createdBy: "<uid>"
+}
+```
+
+---
+
+## 2. Custom Claims — the actual access-control mechanism
+
+Firestore rules cannot trust any field the client can write. Branch and role
+**must** come from a Firebase custom claim, set server-side (Admin SDK, e.g.
+in a Cloud Function triggered on user creation, or from a secure admin panel).
+
+```javascript
+// Server-side only (Cloud Function / Admin SDK) — NEVER in client code
+const admin = require('firebase-admin');
+
+async function setBranchClaims(uid, branchCode, role) {
+  // role: "branch" | "admin"
+  // branchCode: "01".."18" or "99" for Head Office
+  await admin.auth().setCustomUserClaims(uid, { branchCode, role });
+}
+
+// Example: promote a user to Head Office admin
+await setBranchClaims(headOfficeUserUid, "99", "admin");
+
+// Example: a normal branch teller
+await setBranchClaims(branchUserUid, "01", "branch");
+```
+
+The user must sign out/in (or force-refresh their ID token) after claims
+change for the new claims to take effect client-side.
+
+---
+
+## 3. Firestore Security Rules (`firestore.rules`)
+
+```javascript
 rules_version = '2';
 
 service cloud.firestore {
@@ -27,7 +101,7 @@ service cloud.firestore {
       return isSignedIn() && userBranch() == branchCode;
     }
 
-    // The single rule that replaces every client-side branch filter:
+    // The single rule that replaces every buggy client-side branch filter:
     // Head Office bypasses branch matching entirely, branch users must match exactly.
     function canAccessBranch(branchCode) {
       return isHeadOffice() || isOwnBranch(branchCode);
@@ -44,7 +118,7 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------
-    // /branches — master branch list, readable by all signed-in users,
+    // /branches — master list, readable by all signed-in users,
     // writable only by Head Office / admin
     // ------------------------------------------------------------------
     match /branches/{branchCode} {
@@ -76,6 +150,8 @@ service cloud.firestore {
                     && canAccessBranch(resource.data.branchCode)
                     && branchCodeUnchanged();
 
+      // Deletes require Head Office OR the owning branch — and should be
+      // paired with a write to /deletedRecords from the client (see §5).
       allow delete: if isSignedIn() && canAccessBranch(resource.data.branchCode);
     }
 
@@ -150,38 +226,24 @@ service cloud.firestore {
 
     // ------------------------------------------------------------------
     // /deletedRecords — cross-device delete broadcast log.
-    // Every signed-in device can READ this, writes are branch-scoped.
+    // Every signed-in device must be able to READ this (that's how sync
+    // finds out something was deleted elsewhere), but writes are scoped.
     // ------------------------------------------------------------------
     match /deletedRecords/{deletionId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && canAccessBranch(request.resource.data.branchCode);
-      allow update, delete: if false; // append-only log
+      allow update, delete: if false; // append-only log, never edited or removed
     }
 
     // ------------------------------------------------------------------
     // /branchActivity — audit trail / heartbeat.
-    // Branch users can log their OWN activity; only Head Office reads all.
+    // Branch users can log their OWN activity; only Head Office can read
+    // the full audit console.
     // ------------------------------------------------------------------
     match /branchActivity/{activityId} {
       allow create: if isSignedIn() && canAccessBranch(request.resource.data.branchCode);
       allow read: if isHeadOffice() || isOwnBranch(resource.data.branchCode);
       allow update, delete: if false; // immutable audit log
-    }
-
-    // Fallback for backward compatibility with legacy collections
-    match /loans/{loanId} {
-      allow read, write: if isSignedIn();
-    }
-    match /rates/{dateStr} {
-      allow read: if isSignedIn();
-      allow write: if isHeadOffice();
-    }
-    match /settings/{settingKey} {
-      allow read: if isSignedIn();
-      allow write: if isHeadOffice();
-    }
-    match /deleted_loans/{delId} {
-      allow read, write: if isSignedIn();
     }
 
     // ------------------------------------------------------------------
@@ -192,3 +254,92 @@ service cloud.firestore {
     }
   }
 }
+```
+
+---
+
+## 4. Composite Indexes (`firestore.indexes.json`)
+
+Branch-scoped polling (`WHERE branchCode == X ORDER BY updatedAt`) needs a
+composite index per collection — Firestore will refuse the query without one:
+
+```json
+{
+  "indexes": [
+    { "collectionGroup": "goldLoans", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "branchCode", "order": "ASCENDING" },
+      { "fieldPath": "updatedAt", "order": "ASCENDING" }
+    ]},
+    { "collectionGroup": "fdForms", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "branchCode", "order": "ASCENDING" },
+      { "fieldPath": "updatedAt", "order": "ASCENDING" }
+    ]},
+    { "collectionGroup": "odLoans", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "branchCode", "order": "ASCENDING" },
+      { "fieldPath": "updatedAt", "order": "ASCENDING" }
+    ]},
+    { "collectionGroup": "deletedRecords", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "tableName", "order": "ASCENDING" },
+      { "fieldPath": "deletedAt", "order": "ASCENDING" }
+    ]}
+  ],
+  "fieldOverrides": []
+}
+```
+
+Deploy both files with the Firebase CLI:
+```bash
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+---
+
+## 5. Client query pattern (mirrors the Neon poll queries you already have)
+
+```javascript
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+
+function subscribeToFDForms(db, userClaims) {
+  const fdRef = collection(db, "fdForms");
+
+  const q = (userClaims.branchCode === '99' || userClaims.role === 'admin')
+    ? query(fdRef, orderBy("updatedAt", "asc"))                       // Head Office: no filter
+    : query(fdRef, where("branchCode", "==", userClaims.branchCode),  // Branch: scoped
+                    orderBy("updatedAt", "asc"));
+
+  // onSnapshot gives you REAL real-time sync — no 10-second polling loop needed,
+  // this replaces the entire startNeonDeviceSync()/setInterval pattern.
+  return onSnapshot(q, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === "added" || change.type === "modified") {
+        // merge change.doc.data() into local state
+      }
+      if (change.type === "removed") {
+        // remove from local state
+      }
+    });
+  });
+}
+```
+
+**This is the biggest practical upgrade over the Neon setup**: `onSnapshot`
+gives genuine push-based real-time sync. You'd no longer need the 10-second
+`setInterval` polling loop, the `last_synced_at` cursor, or a separate
+`deletedRecords` broadcast table for live devices — Firestore delivers
+deletions as `change.type === "removed"` automatically. (Keep
+`/deletedRecords` only if you still need an audit trail of who deleted what.)
+
+---
+
+## 6. Head Office admin privileges — summary
+
+| Action | Branch user (`01`–`18`) | Head Office / admin (`99`) |
+|---|---|---|
+| Read own branch's loans/FD/OD | ✅ | ✅ |
+| Read **any** branch's records | ❌ | ✅ (no filter applied) |
+| Create records | ✅, own branch only | ✅, any branch |
+| Edit records | ✅, own branch only | ✅, any branch |
+| Delete records | ✅, own branch only | ✅, any branch |
+| Edit gold rates / settings / valuers | ❌ (read-only) | ✅ |
+| View audit trail (`branchActivity`) | own branch only | ✅ all branches |
+| Manage user roles/branches (`/users`) | own profile only | ✅ all users |
