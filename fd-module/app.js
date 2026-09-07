@@ -157,30 +157,19 @@ const FDApp = {
               if (item && item.id) {
                 const local = savedList[item.id];
                 if (!local || (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt)))) {
-                  savedList[item.id] = item;
+                  savedList[item.id] = { ...local, ...item };
                   changed = true;
                 }
               }
             });
-
-            // If Head Office, reflect all branch records directly
-            const branchInfo = window.FirebaseSync.getCurrentBranchInfo();
-            if (branchInfo.isHeadOffice) {
-              cloudForms.forEach(cf => {
-                if (cf && cf.id && !savedList[cf.id]) {
-                  savedList[cf.id] = cf;
-                  changed = true;
-                }
-              });
-            }
           }
 
-          if (changed || Object.keys(savedList).length > 0) {
+          if (changed || (Array.isArray(cloudForms) && cloudForms.length > 0)) {
             localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
-            this.updateRegisterBadgeCount();
-            if (typeof this.renderRegisterTable === 'function' && this.currentView === 'register') {
-              this.renderRegisterTable();
-            }
+          }
+          this.updateRegisterBadgeCount();
+          if (typeof this.renderRegisterTable === 'function') {
+            this.renderRegisterTable();
           }
         });
 
@@ -1713,8 +1702,8 @@ const FDApp = {
     const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '99';
     const selectedBranchFilter = this.selectedRegisterBranch || (isHO ? 'ALL' : userBranch);
 
-    // Sort entries by createdAt timestamp in descending order (Newest first)
-    let sortedEntries = keys.map(k => savedList[k]).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    // Sort entries by updatedAt / createdAt timestamp in descending order (Newest first)
+    let sortedEntries = keys.map(k => savedList[k]).filter(Boolean).sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 
     // Branch Filtering logic:
     // Head Office bypasses branch filter completely (100% of records from all 18 branches visible by default)
