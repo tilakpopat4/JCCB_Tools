@@ -291,12 +291,16 @@
             ...d,
             id: doc.id,
             loanNo: doc.id,
+            loanId: doc.id,
             branchCode: branchCode,
             branch: branchName,
             branchName: branchName,
-            customerName: d.customerName || p.customerName || p.applicantName || 'UNNAMED',
-            customerId: d.customerId || p.customerId || '',
+            borrowerName: d.borrowerName || p.borrowerName || d.customerName || p.customerName || p.applicantName || 'UNNAMED',
+            customerName: d.customerName || p.customerName || d.borrowerName || p.borrowerName || p.applicantName || 'UNNAMED',
+            customerId: d.customerId || p.customerId || p.customerNo || '',
+            customerNo: d.customerNo || p.customerNo || d.customerId || p.customerId || '',
             amount: d.amount || p.loanAmount || p.sanctionAmount || '0',
+            loanAmount: d.loanAmount || p.loanAmount || d.amount || '0',
             timestamp: timeStr,
             status: d.status || 'ACTIVE',
             updatedAt: d.updatedAtIso || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
@@ -359,7 +363,8 @@
             branchName: branchName,
             customerName: d.customerName || (p.applicant1 && p.applicant1.name) || p.customerName || 'UNNAMED',
             customerId: d.customerId || (p.applicant1 && p.applicant1.id) || p.customerId || '',
-            amount: d.amount || p.odLimit || p.loanAmount || '0',
+            amount: d.amount || p.loanAmount || p.odLimit || '0',
+            loanAmount: d.loanAmount || p.loanAmount || d.amount || '0',
             timestamp: timeStr,
             status: d.status || 'ACTIVE',
             updatedAt: d.updatedAtIso || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
@@ -516,7 +521,7 @@
     await init();
     if (!db) throw new Error("Firestore not initialized.");
 
-    const rawId = loan.id || loan.loanNo || loan.formNo || loan.applicationNo || ('GL_' + Date.now());
+    const rawId = loan.id || loan.loanId || loan.loanNo || loan.formNo || loan.proposalNo || loan.applicationNo || ('GL_' + Date.now());
     const cleanId = String(rawId).replace(/[\/\\]/g, '_').trim();
 
     const branchInfo = getCurrentBranchInfo();
@@ -526,9 +531,9 @@
     const loanPayload = (loan.data && typeof loan.data === 'object') ? loan.data : 
                         (loan.payload && typeof loan.payload === 'object') ? loan.payload : loan;
     
-    const custName = loan.customerName || loanPayload.customerName || 'UNNAMED';
-    const custId = loan.customerId || loanPayload.customerId || '';
-    const amount = loan.amount || loanPayload.loanAmount || loanPayload.sanctionAmount || '0';
+    const custName = loan.borrowerName || loan.customerName || loanPayload.borrowerName || loanPayload.customerName || loanPayload.applicantName || 'UNNAMED';
+    const custId = loan.customerId || loan.customerNo || loanPayload.customerId || loanPayload.customerNo || '';
+    const amount = loan.amount || loan.loanAmount || loanPayload.loanAmount || loanPayload.amount || loanPayload.sanctionAmount || '0';
 
     const nowIso = new Date().toISOString();
     const branchName = loan.branchName || loan.branch || loanPayload.branchName || loanPayload.branch || branchInfo.branchName || ('Branch ' + cleanBranch);
@@ -536,13 +541,17 @@
 
     const docPayload = {
       id: cleanId,
+      loanId: cleanId,
       branchCode: cleanBranch,
       branchName: branchName,
       branch: branchName,
       status: loan.status || 'ACTIVE',
+      borrowerName: custName,
       customerName: custName,
       customerId: custId,
+      customerNo: custId,
       amount: amount,
+      loanAmount: amount,
       timestamp: timestampStr,
       payload: loanPayload,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -615,9 +624,9 @@
     const payload = (odData.data && typeof odData.data === 'object') ? odData.data : 
                     (odData.payload && typeof odData.payload === 'object') ? odData.payload : odData;
     
-    const custName = odData.customerName || payload.customerName || 'UNNAMED';
-    const custId = odData.customerId || payload.customerId || '';
-    const amount = odData.amount || payload.odLimit || payload.loanAmount || '0';
+    const custName = odData.customerName || (payload.applicant1 && payload.applicant1.name) || payload.customerName || 'UNNAMED';
+    const custId = odData.customerId || (payload.applicant1 && payload.applicant1.id) || payload.customerId || '';
+    const amount = odData.amount || payload.loanAmount || payload.odLimit || '0';
 
     const nowIso = new Date().toISOString();
     const branchName = odData.branchName || odData.branch || payload.branchName || payload.branch || branchInfo.branchName || ('Branch ' + cleanBranch);
@@ -632,6 +641,7 @@
       customerName: custName,
       customerId: custId,
       amount: amount,
+      loanAmount: amount,
       timestamp: timestampStr,
       payload: payload,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),

@@ -596,8 +596,8 @@ const OverdraftApp = {
     }
   },
 
-  // Save Record To Local Storage
-  saveRecord() {
+  // Save Record To Local Storage & Realtime Cloud Sync
+  async saveRecord() {
     const branchSelect = document.getElementById('branchSelect');
     const branchName = branchSelect?.value || '';
     const branchCode = branchSelect?.selectedOptions?.[0]?.dataset?.branchCode || (branchName ? String(branchName).slice(0, 2) : '99');
@@ -970,6 +970,7 @@ const OverdraftApp = {
   },
 
   // Update Report Metrics
+  updateReportMetrics() {
     const isHO = this.isHeadOffice(this.currentSession);
     const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '';
     const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '01';

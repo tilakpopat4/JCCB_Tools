@@ -81,9 +81,23 @@
         updatedAt: loanData.updatedAt || new Date().toISOString()
       };
 
-      // Dual-write to Neon PostgreSQL
+      // 1. Cloud Realtime Push (Firebase Firestore)
+      if (window.FirebaseSync && typeof window.FirebaseSync.saveGoldLoan === "function") {
+        try {
+          await window.FirebaseSync.saveGoldLoan(payload);
+          console.log(`⚡ [Gold Save] Firestore realtime sync status for ${loanId}: SUCCESS`);
+        } catch (fbErr) {
+          console.warn("⚠️ [Gold Save] Firebase sync warning:", fbErr);
+        }
+      }
+
+      // 2. Dual-write to Neon PostgreSQL
       if (window.PostgresSync && window.PostgresSync.syncGoldLoan) {
-        await window.PostgresSync.syncGoldLoan(payload);
+        try {
+          await window.PostgresSync.syncGoldLoan(payload);
+        } catch (e) {
+          console.warn("[Gold Save] Neon sync warning:", e);
+        }
       }
 
       return payload;
@@ -122,11 +136,24 @@
     },
 
     deleteLoan: async function (loanId) {
+      const cleanId = String(loanId).trim();
+      const bCode = this.getBranchId() || '99';
+      const user = (this.getActiveSession && this.getActiveSession().name) || 'User';
+
+      // 1. Delete & Broadcast on Firebase Firestore
+      if (window.FirebaseSync && typeof window.FirebaseSync.deleteGoldLoan === "function") {
+        try {
+          await window.FirebaseSync.deleteGoldLoan(cleanId, bCode, user);
+          console.log(`🗑️ [Gold Delete] Firestore realtime delete broadcast for ${cleanId}`);
+        } catch (fbErr) {
+          console.warn("[Gold Delete] Firebase delete warning:", fbErr);
+        }
+      }
+
+      // 2. Delete on Neon PostgreSQL
       if (window.PostgresSync && window.PostgresSync.deleteGoldLoan) {
         try {
-          const bCode = this.getBranchId() || '99';
-          const user = (this.getActiveSession && this.getActiveSession().name) || 'User';
-          await window.PostgresSync.deleteGoldLoan(loanId, bCode, user);
+          await window.PostgresSync.deleteGoldLoan(cleanId, bCode, user);
         } catch (e) {
           console.warn("[Neon Cloud] Delete loan sync error:", e);
         }
@@ -147,27 +174,55 @@
 
     listenLoans: function (branchCode, callback) {
       if (typeof callback !== "function") return;
-      this.getLoans(branchCode).then(callback).catch(() => {});
-      setInterval(async () => {
+
+      // 1. Firebase Firestore Instant Realtime Push Subscription
+      if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToGoldLoans === "function") {
         try {
-          const loans = await this.getLoans(branchCode);
-          if (Array.isArray(loans)) callback(loans);
-        } catch (e) { }
-      }, 10000);
+          window.FirebaseSync.subscribeToGoldLoans((cloudLoans) => {
+            if (Array.isArray(cloudLoans)) {
+              callback(cloudLoans);
+            }
+          });
+        } catch (fbErr) {
+          console.warn("[Gold Live Sync] Firebase subscription notice:", fbErr);
+        }
+      }
+
+      // 2. Initial load and Neon fallback
+      this.getLoans(branchCode).then(loans => {
+        if (Array.isArray(loans) && loans.length > 0) {
+          callback(loans);
+        }
+      }).catch(() => {});
     },
 
     listenDeletedLoans: function (callback) {
       if (typeof callback !== "function") return;
-      setInterval(async () => {
-        if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+
+      // 1. Firebase Firestore Realtime Deletion Broadcast Listener
+      if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToDeletedRecords === "function") {
+        try {
+          window.FirebaseSync.subscribeToDeletedRecords('goldLoans', (deletedId) => {
+            if (deletedId) {
+              callback(deletedId);
+            }
+          });
+        } catch (fbErr) {
+          console.warn("[Gold Delete Listener] Firebase deleted subscription notice:", fbErr);
+        }
+      }
+
+      // 2. Neon fallback query for deleted records
+      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+        setInterval(async () => {
           try {
             const res = await window.PostgresSync.runNeonQuery("SELECT id FROM jccb_deleted_records WHERE module = 'gold' AND deleted_at > NOW() - INTERVAL '15 minutes';");
             if (res && res.rows) {
               res.rows.forEach(r => callback(r.id));
             }
           } catch (e) { }
-        }
-      }, 15000);
+        }, 15000);
+      }
     },
 
     // ==========================================

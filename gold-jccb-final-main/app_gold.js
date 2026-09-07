@@ -4253,7 +4253,12 @@ function renderRegisterTable() {
     }
 
     list.forEach(loan => {
-        const sancAmt = Math.round(parseFloat(loan.sanctionedAmount || 0));
+        const loanDate = loan.date || loan.loanDate || (loan.data && (loan.data.date || loan.data.loanDate)) || "";
+        const branchCode = loan.branchCode || (loan.data && loan.data.branchCode) || "99";
+        const borrowerName = loan.borrowerName || loan.customerName || (loan.data && (loan.data.borrowerName || loan.data.customerName)) || "Unnamed";
+        const sancAmt = Math.round(parseFloat(loan.sanctionedAmount || loan.loanAmount || loan.amount || (loan.data && (loan.data.sanctionedAmount || loan.data.loanAmount || loan.data.amount)) || 0));
+        const goldWeight = parseFloat(loan.goldWeight || loan.netWeight || (loan.data && (loan.data.goldWeight || loan.data.netWeight)) || 0).toFixed(3);
+        const packetNo = loan.packetNo || (loan.data && loan.data.packetNo) || "-";
         const deductions = Math.round(parseFloat(loan.totalDeductions || (
             (parseFloat(loan.shareA || 0) + parseFloat(loan.shareB || 0) + parseFloat(loan.memberFee || 0) +
                 parseFloat(loan.valuerFee || 0) + parseFloat(loan.stampDuty || 0) + parseFloat(loan.serviceCharge || 0) +
@@ -4261,27 +4266,27 @@ function renderRegisterTable() {
                 parseFloat(loan.sgst || 0) + parseFloat(loan.otherCharges || 0))
         )));
         const netPaid = sancAmt - deductions;
-        const accFormatted = formatLoanAccountNo(loan.accountNo, loan.branchCode, loan.loanType);
-        const canDelete = isHO || isBranchMatch(loan.branchCode, userBranch);
+        const accFormatted = formatLoanAccountNo(loan.accountNo || (loan.data && loan.data.accountNo), branchCode, loan.loanType);
+        const canDelete = isHO || isBranchMatch(branchCode, userBranch);
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td style="white-space:nowrap;"><strong>${formatDateDMY(loan.date)}</strong></td>
-            <td style="white-space:nowrap; text-align:center;"><span class="badge badge-primary">${loan.branchCode}</span></td>
+            <td style="white-space:nowrap;"><strong>${formatDateDMY(loanDate)}</strong></td>
+            <td style="white-space:nowrap; text-align:center;"><span class="badge badge-primary">${branchCode}</span></td>
             <td style="white-space:nowrap;"><strong>${accFormatted}</strong></td>
             <td style="white-space:nowrap; text-align:center;">
                 ${isHO ? `
                 <span class="packet-no-pill" data-id="${loan.id}" title="Head Office Privilege: Click to edit Packet Number" style="cursor:pointer; display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; background:#f0f6fa; border:1px solid var(--accent-slate); font-weight:800; color:var(--primary);">
-                    ${loan.packetNo || "-"} <i class="fa-solid fa-pen" style="font-size:9.5px; opacity:0.7;"></i>
+                    ${packetNo} <i class="fa-solid fa-pen" style="font-size:9.5px; opacity:0.7;"></i>
                 </span>
                 ` : `
-                <strong style="font-weight:800; color:#334155;">${loan.packetNo || "-"}</strong>
+                <strong style="font-weight:800; color:#334155;">${packetNo}</strong>
                 `}
             </td>
-            <td style="min-width:160px; font-weight:700;">${loan.borrowerName}</td>
+            <td style="min-width:160px; font-weight:700;">${borrowerName}</td>
             <td style="white-space:nowrap; text-align:center;"><span class="badge badge-gold">${loan.loanType || "GW-3725"}</span></td>
             <td style="text-align:right; white-space:nowrap; font-weight:800;">₹ ${sancAmt.toLocaleString("en-IN")}</td>
-            <td style="text-align:right; white-space:nowrap;">${parseFloat(loan.goldWeight || 0).toFixed(3)} g</td>
+            <td style="text-align:right; white-space:nowrap;">${goldWeight} g</td>
             <td style="text-align:right; white-space:nowrap; color:#b91c1c;">₹ ${deductions.toLocaleString("en-IN")}</td>
             <td style="text-align:right; font-weight:800; color:var(--success-dark); white-space:nowrap;">₹ ${netPaid.toLocaleString("en-IN")}</td>
             <td style="text-align:center; white-space:nowrap; padding:6px 8px;">
