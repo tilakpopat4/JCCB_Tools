@@ -1,7 +1,7 @@
 /**
  * The Junagadh Commercial Co-Operative Bank Ltd.
- * 100% Pure Neon Serverless PostgreSQL Cloud Engine for Gold Loan Portal
- * Replaces Firebase Firestore completely with Zero-Limits Cloud Postgres.
+ * 100% Pure Neon Serverless PostgreSQL & Firebase Firestore Hybrid Cloud Engine for Gold Loan Portal
+ * Zero-Limits Cloud PostgreSQL + Live Realtime Push Firestore Sync.
  */
 
 (function () {
@@ -109,15 +109,54 @@
         bCode = this.getBranchId();
       }
 
+      const loanMap = new Map();
+
+      // 1. Fetch from Neon PostgreSQL
       if (window.PostgresSync && window.PostgresSync.fetchGoldLoans) {
         try {
-          const loans = await window.PostgresSync.fetchGoldLoans(bCode);
-          if (Array.isArray(loans) && loans.length > 0) {
-            return loans;
+          const pgLoans = await window.PostgresSync.fetchGoldLoans(bCode);
+          if (Array.isArray(pgLoans)) {
+            pgLoans.forEach(l => {
+              if (l && (l.id || l.loanId)) {
+                loanMap.set(String(l.id || l.loanId).trim(), l);
+              }
+            });
           }
         } catch (e) {
           console.warn("[Neon Cloud] Fallback to local cache for loans:", e);
         }
+      }
+
+      // 2. Fetch from Firebase Firestore if available
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        try {
+          const db = firebase.firestore();
+          let query = db.collection('goldLoans');
+          if (!this.isHeadOffice() && bCode) {
+            query = query.where('branchCode', '==', String(bCode).padStart(2, '0'));
+          }
+          const snap = await query.get();
+          snap.forEach(doc => {
+            const data = doc.data();
+            const id = String(data.id || data.loanId || doc.id).trim();
+            const existing = loanMap.get(id);
+            const loanObj = { ...(data.payload || data), id: id, loanId: id };
+            if (existing) {
+              loanMap.set(id, { ...existing, ...loanObj });
+            } else {
+              loanMap.set(id, loanObj);
+            }
+          });
+        } catch (fbErr) { }
+      }
+
+      if (loanMap.size > 0) {
+        let list = Array.from(loanMap.values());
+        if (!this.isHeadOffice() && bCode) {
+          const userBranch = String(bCode).replace(/\D/g, '');
+          list = list.filter(l => String(l.branchCode || l.branchId || "").replace(/\D/g, '') === userBranch);
+        }
+        return list;
       }
 
       try {
@@ -162,14 +201,21 @@
     },
 
     getDeletedLoanIds: async function () {
+      const deletedSet = new Set();
       if (window.PostgresSync && window.PostgresSync.fetchDeletedRecordIds) {
         try {
-          return await window.PostgresSync.fetchDeletedRecordIds('gold');
-        } catch (e) {
-          return [];
-        }
+          const pgDeleted = await window.PostgresSync.fetchDeletedRecordIds('gold');
+          (pgDeleted || []).forEach(id => deletedSet.add(String(id).trim()));
+        } catch (e) { }
       }
-      return [];
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        try {
+          const db = firebase.firestore();
+          const snap = await db.collection('deleted_loans').get();
+          snap.forEach(doc => deletedSet.add(String(doc.id).trim()));
+        } catch (e) { }
+      }
+      return Array.from(deletedSet);
     },
 
     listenLoans: function (branchCode, callback) {
@@ -229,17 +275,33 @@
     // 2. DAILY GOLD RATE MASTER
     // ==========================================
     saveDailyRate: async function (dateStr, rateVal) {
+      const r22 = Number(rateVal);
       const payload = {
         date: dateStr,
-        rate22K: Number(rateVal),
-        rate24K: Math.round(Number(rateVal) * (24 / 22)),
+        rate22K: r22,
+        rate24K: Math.round(r22 * (24 / 22)),
         updatedAt: new Date().toISOString()
       };
 
       if (window.PostgresSync && window.PostgresSync.syncGoldRate) {
-        await window.PostgresSync.syncGoldRate(dateStr, rateVal);
+        try { await window.PostgresSync.syncGoldRate(dateStr, rateVal); } catch (e) {}
       }
+
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        try {
+          const db = firebase.firestore();
+          await db.collection('goldSettings').doc('dailyRates').set(payload, { merge: true });
+        } catch (e) {}
+      }
+
       return payload;
+    },
+
+    saveDailyRates: async function (ratesObj) {
+      if (!ratesObj) return;
+      const r22 = parseFloat(ratesObj.rate22K || ratesObj.rate || 0);
+      const rDate = ratesObj.date || new Date().toISOString().split("T")[0];
+      return this.saveDailyRate(rDate, r22);
     },
 
     getDailyRates: async function () {
@@ -284,6 +346,9 @@
     saveBranchesList: async function (branches) {
       if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
         await window.PostgresSync.syncGoldSettings('branches', branches);
+      }
+      if (window.FirebaseSync && typeof window.FirebaseSync.saveBranches === 'function') {
+        try { await window.FirebaseSync.saveBranches(branches); } catch (e) {}
       }
       return branches;
     },
@@ -517,7 +582,260 @@
     deleteActiveSession: async function () {},
 
     // ==========================================
-    // 7. UTILITIES
+    // 7. GLOBAL DATABASE RESTORE & LIVE BROADCAST
+    // ==========================================
+    restoreFullDatabaseToFirebase: async function (restoredData = {}, onProgress = null) {
+      const report = (stage, pct, msg) => {
+        console.log(`[Neon/Firebase Restore ${pct}%] [${stage}]: ${msg}`);
+        if (typeof onProgress === "function") {
+          try { onProgress(stage, pct, msg); } catch (e) {}
+        }
+      };
+
+      report("START", 5, "Cloud Database Connection Established...");
+
+      try {
+        // 1. Daily Rates & Rate History
+        if (restoredData.goldRates || (restoredData.rateHistory && restoredData.rateHistory.length > 0)) {
+          report("RATES", 12, "Saving daily gold rates & rate history to cloud...");
+          const latestRate = (restoredData.rateHistory && restoredData.rateHistory.length > 0)
+            ? restoredData.rateHistory[0]
+            : { rate22K: restoredData.goldRates?.["22K"] || 0, rate24K: restoredData.goldRates?.["24K"] || 0 };
+          const r22 = parseFloat(latestRate.rate22K || latestRate.rate || 0);
+          const rDate = latestRate.date || new Date().toISOString().split("T")[0];
+
+          if (r22 > 0) {
+            await this.saveDailyRate(rDate, r22);
+          }
+          if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
+            try {
+              await window.PostgresSync.syncGoldSettings('rateHistory', restoredData.rateHistory || []);
+            } catch (e) {}
+          }
+          if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+            try {
+              const db = firebase.firestore();
+              await db.collection('goldSettings').doc('dailyRates').set({
+                rate22K: r22,
+                rate24K: Math.round(r22 * (24 / 22)),
+                date: rDate,
+                isLocked: Boolean(restoredData.goldRates?.isLocked),
+                lockedAt: restoredData.goldRates?.lockedAt || null,
+                lockedBy: restoredData.goldRates?.lockedBy || "HEAD OFFICE",
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+              if (Array.isArray(restoredData.rateHistory)) {
+                await db.collection('goldSettings').doc('rateHistory').set({
+                  list: restoredData.rateHistory,
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+              }
+            } catch (e) {}
+          }
+        }
+
+        // 2. Sony Valuers Master
+        if (Array.isArray(restoredData.valuers)) {
+          report("VALUERS", 25, `Saving ${restoredData.valuers.length} Sony Valuers to cloud...`);
+          await this.saveValuersList(restoredData.valuers, []);
+        }
+
+        // 3. Branches Master
+        if (Array.isArray(restoredData.branches)) {
+          report("BRANCHES", 35, `Saving ${restoredData.branches.length} Bank Branches to cloud...`);
+          await this.saveBranchesList(restoredData.branches);
+        }
+
+        // 4. Products Master
+        if (Array.isArray(restoredData.products)) {
+          report("PRODUCTS", 45, `Saving ${restoredData.products.length} Loan Schemes to cloud...`);
+          await this.saveProductsList(restoredData.products);
+          if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+            try {
+              const db = firebase.firestore();
+              await db.collection('goldSettings').doc('products').set({
+                list: restoredData.products,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+            } catch (e) {}
+          }
+        }
+
+        // 5. Rules Master & Settings
+        if (restoredData.rules) {
+          report("RULES", 55, "Saving Banking Rules & Custom Charges to cloud...");
+          await this.saveRules(restoredData.rules);
+          if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+            try {
+              const db = firebase.firestore();
+              await db.collection('goldSettings').doc('rules').set({
+                ...restoredData.rules,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+            } catch (e) {}
+          }
+        }
+        if (restoredData.settings) {
+          report("SETTINGS", 62, "Saving Account Settings & Seeds to cloud...");
+          await this.saveSettings(restoredData.settings);
+          if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+            try {
+              const db = firebase.firestore();
+              await db.collection('goldSettings').doc('settings').set({
+                ...restoredData.settings,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+            } catch (e) {}
+          }
+        }
+
+        // 6. Customers Master
+        if (Array.isArray(restoredData.customers) && restoredData.customers.length > 0) {
+          report("CUSTOMERS", 70, `Saving ${restoredData.customers.length} Member/Customer profiles to cloud...`);
+          await this.saveCustomersList(restoredData.customers);
+          if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+            try {
+              const db = firebase.firestore();
+              await db.collection('goldSettings').doc('customers').set({
+                list: restoredData.customers,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+            } catch (e) {}
+          }
+        }
+
+        // 7. Clean up deleted tombstones for any restored active loans
+        const loans = Array.isArray(restoredData.loans) ? restoredData.loans : [];
+        const totalLoans = loans.length;
+        const restoredLoanIds = loans.map(l => String(l.id || l.loanId || "").trim()).filter(Boolean);
+
+        if (restoredLoanIds.length > 0) {
+          report("CLEANUP", 75, "Clearing old deleted tombstones for restored active loans...");
+          // Clean from PostgreSQL
+          if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+            try {
+              await window.PostgresSync.runNeonQuery(
+                `DELETE FROM jccb_deleted_records WHERE module = 'gold' AND id = ANY($1::text[]);`,
+                [restoredLoanIds]
+              );
+            } catch (e) { }
+          }
+          // Clean from Firestore
+          if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+            try {
+              const db = firebase.firestore();
+              const batch = db.batch();
+              let count = 0;
+              for (const lId of restoredLoanIds) {
+                batch.delete(db.collection('deleted_loans').doc(lId));
+                batch.delete(db.collection('deletedRecords').doc(`gold_${lId}`));
+                batch.delete(db.collection('deletedRecords').doc(lId));
+                count++;
+                if (count >= 400) break;
+              }
+              await batch.commit();
+            } catch (e) {}
+          }
+        }
+
+        // 8. Upload Loan Records in Batches
+        report("LOANS", 80, `Uploading ${totalLoans} Gold Loan records to Firebase & Neon...`);
+        const loanBatchSize = 10;
+        for (let i = 0; i < totalLoans; i += loanBatchSize) {
+          const chunk = loans.slice(i, i + loanBatchSize);
+          const currentProgress = Math.round(80 + ((i + chunk.length) / (totalLoans || 1)) * 16);
+          report("LOANS_CHUNK", currentProgress, `Uploading loans: ${i + chunk.length} / ${totalLoans}...`);
+
+          await Promise.all(chunk.map(async (loanItem) => {
+            const loanId = String(loanItem.id || loanItem.loanId || `GL_${Date.now()}_${loanItem.branchCode || '01'}`).trim();
+            let custPhoto = loanItem.customerPhoto || loanItem.applicantPhoto || "";
+            let ornPhoto = loanItem.ornamentPhoto || "";
+
+            if (typeof custPhoto === "string" && custPhoto.startsWith("data:image") && custPhoto.length > 120000) {
+              try { custPhoto = await this.compressBase64Image(custPhoto, 400, 0.6); } catch (e) {}
+            }
+            if (typeof ornPhoto === "string" && ornPhoto.startsWith("data:image") && ornPhoto.length > 120000) {
+              try { ornPhoto = await this.compressBase64Image(ornPhoto, 400, 0.6); } catch (e) {}
+            }
+
+            const pLoan = {
+              ...loanItem,
+              id: loanId,
+              loanId: loanId,
+              customerPhoto: custPhoto,
+              applicantPhoto: custPhoto,
+              ornamentPhoto: ornPhoto,
+              branchCode: String(loanItem.branchCode || loanItem.branchId || '01'),
+              branchId: String(loanItem.branchCode || loanItem.branchId || '01'),
+              updatedAt: loanItem.updatedAt || new Date().toISOString()
+            };
+
+            await this.saveLoan(pLoan);
+          }));
+        }
+
+        // 9. Send Global Broadcast Signal
+        report("BROADCAST", 98, "Broadcasting global restore signal to all branches...");
+        await this.sendGlobalSyncSignal({
+          action: "DATABASE_RESTORE_GLOBAL",
+          restoreTimestamp: Date.now(),
+          restoredBy: (window.state?.currentSession?.name) || "HEAD OFFICE",
+          summary: { loans: totalLoans, customers: (restoredData.customers || []).length }
+        });
+
+        report("COMPLETE", 100, "Full database restored and saved permanently to Cloud!");
+        return true;
+      } catch (fatalError) {
+        console.error("[Neon/Firebase Restore] Fatal error during cloud restore:", fatalError);
+        report("ERROR", 100, "Cloud restore error: " + fatalError.message);
+        throw fatalError;
+      }
+    },
+
+    sendGlobalSyncSignal: async function (signalData = {}) {
+      const payload = {
+        ...signalData,
+        restoreTimestamp: Date.now(),
+        updatedAt: new Date().toISOString()
+      };
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        try {
+          const db = firebase.firestore();
+          await db.collection('settings').doc('global_sync_signal').set(payload, { merge: true });
+          await db.collection('goldSettings').doc('global_sync_signal').set(payload, { merge: true });
+        } catch (e) {}
+      }
+      return payload;
+    },
+
+    getGlobalSyncSignal: async function () {
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        try {
+          const db = firebase.firestore();
+          const doc = await db.collection('goldSettings').doc('global_sync_signal').get();
+          if (doc.exists) return doc.data();
+          const doc2 = await db.collection('settings').doc('global_sync_signal').get();
+          if (doc2.exists) return doc2.data();
+        } catch (e) {}
+      }
+      return null;
+    },
+
+    listenGlobalSyncSignal: function (onSignal) {
+      if (typeof onSignal !== "function") return () => {};
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        try {
+          const db = firebase.firestore();
+          return db.collection('goldSettings').doc('global_sync_signal').onSnapshot(doc => {
+            if (doc.exists) onSignal(doc.data());
+          }, () => {});
+        } catch (e) {}
+      }
+      return () => {};
+    },
+
+    // ==========================================
+    // 8. UTILITIES
     // ==========================================
     compressBase64Image: async function (base64, maxDim = 600, quality = 0.7) {
       return new Promise((resolve) => {

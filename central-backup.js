@@ -118,11 +118,21 @@ const CentralBackup = (function () {
       }
     }
 
-    // 3. Dual-write loans to Neon PostgreSQL
-    if (window.PostgresSync && window.PostgresSync.syncGoldLoan && Array.isArray(stateData.loans)) {
+    // 3. Dual-write loans to Firebase Firestore & Neon PostgreSQL
+    if (Array.isArray(stateData.loans)) {
       stateData.loans.forEach(loan => {
-        window.PostgresSync.syncGoldLoan(loan).catch(() => {});
+        if (window.FirebaseSync && typeof window.FirebaseSync.saveGoldLoan === "function") {
+          window.FirebaseSync.saveGoldLoan(loan).catch(() => {});
+        }
+        if (window.PostgresSync && window.PostgresSync.syncGoldLoan) {
+          window.PostgresSync.syncGoldLoan(loan).catch(() => {});
+        }
       });
+    }
+
+    // 4. Save Valuers to Firebase Firestore
+    if (Array.isArray(stateData.valuers) && window.FirebaseSync && typeof window.FirebaseSync.saveValuersList === "function") {
+      window.FirebaseSync.saveValuersList(stateData.valuers, stateData.deletedValuerIds || []).catch(() => {});
     }
   }
 
@@ -147,9 +157,14 @@ const CentralBackup = (function () {
 
   function saveFDForms(formsObj) {
     localStorage.setItem(FD_FORMS_KEY, JSON.stringify(formsObj || {}));
-    if (window.PostgresSync && window.PostgresSync.syncFDForm && formsObj) {
+    if (formsObj) {
       Object.values(formsObj).forEach(f => {
-        window.PostgresSync.syncFDForm(f).catch(() => {});
+        if (window.FirebaseSync && typeof window.FirebaseSync.saveFDForm === "function") {
+          window.FirebaseSync.saveFDForm(f).catch(() => {});
+        }
+        if (window.PostgresSync && window.PostgresSync.syncFDForm) {
+          window.PostgresSync.syncFDForm(f).catch(() => {});
+        }
       });
     }
   }
@@ -172,9 +187,14 @@ const CentralBackup = (function () {
 
   function saveODLoans(loansObj) {
     localStorage.setItem(OD_LOANS_KEY, JSON.stringify(loansObj || {}));
-    if (window.PostgresSync && window.PostgresSync.syncODLoan && loansObj) {
+    if (loansObj) {
       Object.values(loansObj).forEach(l => {
-        window.PostgresSync.syncODLoan(l).catch(() => {});
+        if (window.FirebaseSync && typeof window.FirebaseSync.saveODLoan === "function") {
+          window.FirebaseSync.saveODLoan(l).catch(() => {});
+        }
+        if (window.PostgresSync && window.PostgresSync.syncODLoan) {
+          window.PostgresSync.syncODLoan(l).catch(() => {});
+        }
       });
     }
   }

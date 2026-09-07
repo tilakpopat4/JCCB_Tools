@@ -822,6 +822,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 window.FirebaseService.listenLoans(null, (cloudLoans) => {
                     if (Array.isArray(cloudLoans)) {
                         if (!state.loans) state.loans = [];
+                        const activeLocalIds = new Set((state.loans || []).map(l => String(l.id || l.loanId || "").trim()).filter(Boolean));
+                        if (state.deletedLoanIds && state.deletedLoanIds.length > 0) {
+                            state.deletedLoanIds = state.deletedLoanIds.filter(id => !activeLocalIds.has(String(id).trim()));
+                        }
                         const deletedSet = new Set(state.deletedLoanIds || []);
 
                         const validCloudLoans = cloudLoans.filter(cl => {
@@ -1168,6 +1172,11 @@ async function syncCloudData(isManual = false) {
         }
 
         // 8. Sync Loans (Lossless Non-Destructive Bidirectional Merge)
+        const activeLocalIds = new Set((state.loans || []).map(l => String(l.id || l.loanId || "").trim()).filter(Boolean));
+        if (state.deletedLoanIds && state.deletedLoanIds.length > 0) {
+            state.deletedLoanIds = state.deletedLoanIds.filter(id => !activeLocalIds.has(String(id).trim()));
+        }
+
         const fbLoans = await window.FirebaseService.getLoans();
         const deletedSet = new Set(state.deletedLoanIds || []);
 
