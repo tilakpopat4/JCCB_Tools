@@ -4,7 +4,7 @@
  * 
  * Supports all 3 portals: Gold Loan, FD Portal, and OD Against FD Portal.
  * Enforces branch isolation (01-18) + Head Office (99 / admin) global consolidation.
- * Schema & Security Rules compliant with firestore_schema_and_rules.md.
+ * Instant real-time push sync via Firestore onSnapshot.
  */
 
 (function (root, factory) {
@@ -27,6 +27,27 @@
     appId: "1:652615139127:web:c0d38c2fe56cd3e2c464b2",
     measurementId: "G-SD139BQ7NN"
   };
+
+  const DEFAULT_JCCB_BRANCHES = [
+    { code: "99", branchCode: "99", name: "99 HEAD OFFICE", shortName: "HO", branchNameGuj: "૯૯ હેડ ઓફિસ (મુખ્ય કચેરી)", role: "admin", isHeadOffice: true },
+    { code: "01", branchCode: "01", name: "01 AZADCHOWK BRANCH", shortName: "CBB", branchNameGuj: "૦૧ આઝાદચોક શાખા", role: "branch", isHeadOffice: false },
+    { code: "02", branchCode: "02", name: "02 JOSHIPARA BRANCH", shortName: "JPB", branchNameGuj: "૦૨ જોશીપરા શાખા", role: "branch", isHeadOffice: false },
+    { code: "03", branchCode: "03", name: "03 DOLATPARA BRANCH", shortName: "DPB", branchNameGuj: "૦૩ દોલતપરા શાખા", role: "branch", isHeadOffice: false },
+    { code: "04", branchCode: "04", name: "04 KODINAR BRANCH", shortName: "KDR", branchNameGuj: "૦૪ કોડીનાર શાખા", role: "branch", isHeadOffice: false },
+    { code: "05", branchCode: "05", name: "05 KESHOD BRANCH", shortName: "KSD", branchNameGuj: "૦૫ કેશોદ શાખા", role: "branch", isHeadOffice: false },
+    { code: "06", branchCode: "06", name: "06 VANTHALI BRANCH", shortName: "VTL", branchNameGuj: "૦૬ વંથલી શાખા", role: "branch", isHeadOffice: false },
+    { code: "07", branchCode: "07", name: "07 MANAVADAR BRANCH", shortName: "MNV", branchNameGuj: "૦૭ માણાવદર શાખા", role: "branch", isHeadOffice: false },
+    { code: "08", branchCode: "08", name: "08 GANDHINAGAR BRANCH", shortName: "GNB", branchNameGuj: "૦૮ ગાંધીનગર શાખા", role: "branch", isHeadOffice: false },
+    { code: "09", branchCode: "09", name: "09 LIMBDI BRANCH", shortName: "LIM", branchNameGuj: "૦૯ લીંબડી શાખા", role: "branch", isHeadOffice: false },
+    { code: "10", branchCode: "10", name: "10 MENDARDA BRANCH", shortName: "MND", branchNameGuj: "૧૦ મેંદરડા શાખા", role: "branch", isHeadOffice: false },
+    { code: "11", branchCode: "11", name: "11 VISAVADAR BRANCH", shortName: "VIS", branchNameGuj: "૧૧ વિસાવદર શાખા", role: "branch", isHeadOffice: false },
+    { code: "12", branchCode: "12", name: "12 JAMNAGAR BRANCH", shortName: "JAM", branchNameGuj: "૧૨ જામનગર શાખા", role: "branch", isHeadOffice: false },
+    { code: "13", branchCode: "13", name: "13 BUS STAND BRANCH", shortName: "STB", branchNameGuj: "૧૩ બસ સ્ટેન્ડ શાખા", role: "branch", isHeadOffice: false },
+    { code: "14", branchCode: "14", name: "14 LATHI BRANCH", shortName: "LTH", branchNameGuj: "૧૪ લાઠી શાખા", role: "branch", isHeadOffice: false },
+    { code: "16", branchCode: "16", name: "16 AHMEDABAD BRANCH", shortName: "AHM", branchNameGuj: "૧૬ અમદાવાદ શાખા", role: "branch", isHeadOffice: false },
+    { code: "17", branchCode: "17", name: "17 RAJKOT BRANCH", shortName: "RJT", branchNameGuj: "૧૭ રાજકોટ શાખા", role: "branch", isHeadOffice: false },
+    { code: "18", branchCode: "18", name: "18 ZANZARDA BRANCH", shortName: "ZAN", branchNameGuj: "૧૮ ઝાંઝરડા શાખા", role: "branch", isHeadOffice: false }
+  ];
 
   let app = null;
   let auth = null;
@@ -138,13 +159,13 @@
           }
         }
 
-        // Anonymous auth fallback session
+        // Authenticate session (Anonymous or existing)
         if (auth && !auth.currentUser) {
           try {
             await auth.signInAnonymously();
             console.log("🔒 [FirebaseSync] Cloud authenticated session active.");
           } catch (authErr) {
-            console.warn("[FirebaseSync] Anonymous auth fallback notice:", authErr.message);
+            console.warn("[FirebaseSync] Anonymous auth notice (Check if Anonymous auth is enabled in Firebase Console):", authErr.message);
           }
         }
 
@@ -163,7 +184,7 @@
   }
 
   // =========================================================================
-  // REAL-TIME SUBSCRIPTIONS (PUSH BASED — NO 10S POLLING LOOP NEEDED)
+  // REAL-TIME SUBSCRIPTIONS (PUSH BASED — INSTANT SYNC)
   // =========================================================================
 
   /**
@@ -177,12 +198,10 @@
     const branchInfo = getCurrentBranchInfo();
     const fdRef = db.collection('fdForms');
 
-    let q;
-    if (branchInfo.isHeadOffice) {
-      q = fdRef.orderBy('updatedAt', 'asc');
-    } else {
-      q = fdRef.where('branchCode', '==', branchInfo.branchCode).orderBy('updatedAt', 'asc');
-    }
+    // Simple, highly resilient query that works immediately without requiring composite index compilation
+    const q = branchInfo.isHeadOffice
+      ? fdRef
+      : fdRef.where('branchCode', '==', branchInfo.branchCode);
 
     const unsubKey = 'fdForms';
     if (activeSubscriptions[unsubKey]) {
@@ -211,42 +230,16 @@
           });
         });
 
+        // Client-side sort by updatedAt ascending
+        records.sort((a, b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0));
+
+        console.log(`⚡ [FirebaseSync] Received ${records.length} live FD forms from Firestore.`);
         if (typeof onDataCallback === 'function') {
           onDataCallback(records, snapshot.docChanges());
         }
       },
-      async (err) => {
-        console.warn("[FirebaseSync] FD query with index failed, falling back to simple query:", err.message);
-        // Fallback if composite index is building
-        const fallbackRef = branchInfo.isHeadOffice
-          ? fdRef
-          : fdRef.where('branchCode', '==', branchInfo.branchCode);
-
-        const fallbackUnsub = fallbackRef.onSnapshot((snapshot) => {
-          const records = [];
-          snapshot.forEach(doc => {
-            const d = doc.data();
-            records.push({
-              id: doc.id,
-              formNo: doc.id,
-              branchCode: d.branchCode || '99',
-              customerName: d.customerName || (d.payload && d.payload.firstFullName) || 'UNNAMED',
-              customerId: d.customerId || (d.payload && d.payload.firstCustomerId) || 'TJCCB',
-              depositScheme: d.depositScheme || (d.payload && d.payload.typeOfDeposit) || 'FIXED DEPOSIT (FD)',
-              amount: d.amount || (d.payload && d.payload.deposit1Amount) || '0',
-              roi: d.roi || (d.payload && d.payload.deposit1Roi) || '0.00',
-              maturityAmount: d.maturityAmount || (d.payload && d.payload.deposit1MaturityAmount) || '',
-              tenure: d.tenure || '',
-              status: d.status || 'ACTIVE',
-              updatedAt: d.updatedAtIso || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
-              data: d.payload || d
-            });
-          });
-          if (typeof onDataCallback === 'function') {
-            onDataCallback(records, snapshot.docChanges());
-          }
-        });
-        activeSubscriptions[unsubKey] = fallbackUnsub;
+      (err) => {
+        console.error("❌ [FirebaseSync] Error listening to FD forms:", err.message);
       }
     );
 
@@ -264,12 +257,9 @@
     const branchInfo = getCurrentBranchInfo();
     const goldRef = db.collection('goldLoans');
 
-    let q;
-    if (branchInfo.isHeadOffice) {
-      q = goldRef.orderBy('updatedAt', 'asc');
-    } else {
-      q = goldRef.where('branchCode', '==', branchInfo.branchCode).orderBy('updatedAt', 'asc');
-    }
+    const q = branchInfo.isHeadOffice
+      ? goldRef
+      : goldRef.where('branchCode', '==', branchInfo.branchCode);
 
     const unsubKey = 'goldLoans';
     if (activeSubscriptions[unsubKey]) {
@@ -294,37 +284,15 @@
           });
         });
 
+        records.sort((a, b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0));
+        console.log(`⚡ [FirebaseSync] Received ${records.length} live Gold Loans from Firestore.`);
+
         if (typeof onDataCallback === 'function') {
           onDataCallback(records, snapshot.docChanges());
         }
       },
       (err) => {
-        console.warn("[FirebaseSync] Gold Loans query index fallback:", err.message);
-        const fallbackRef = branchInfo.isHeadOffice
-          ? goldRef
-          : goldRef.where('branchCode', '==', branchInfo.branchCode);
-
-        const fallbackUnsub = fallbackRef.onSnapshot((snapshot) => {
-          const records = [];
-          snapshot.forEach(doc => {
-            const d = doc.data();
-            records.push({
-              id: doc.id,
-              loanNo: doc.id,
-              branchCode: d.branchCode || '99',
-              customerName: d.customerName || (d.payload && d.payload.customerName) || 'UNNAMED',
-              customerId: d.customerId || (d.payload && d.payload.customerId) || '',
-              amount: d.amount || (d.payload && d.payload.loanAmount) || '0',
-              status: d.status || 'ACTIVE',
-              updatedAt: d.updatedAtIso || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
-              data: d.payload || d
-            });
-          });
-          if (typeof onDataCallback === 'function') {
-            onDataCallback(records, snapshot.docChanges());
-          }
-        });
-        activeSubscriptions[unsubKey] = fallbackUnsub;
+        console.error("❌ [FirebaseSync] Error listening to Gold Loans:", err.message);
       }
     );
 
@@ -342,12 +310,9 @@
     const branchInfo = getCurrentBranchInfo();
     const odRef = db.collection('odLoans');
 
-    let q;
-    if (branchInfo.isHeadOffice) {
-      q = odRef.orderBy('updatedAt', 'asc');
-    } else {
-      q = odRef.where('branchCode', '==', branchInfo.branchCode).orderBy('updatedAt', 'asc');
-    }
+    const q = branchInfo.isHeadOffice
+      ? odRef
+      : odRef.where('branchCode', '==', branchInfo.branchCode);
 
     const unsubKey = 'odLoans';
     if (activeSubscriptions[unsubKey]) {
@@ -372,37 +337,15 @@
           });
         });
 
+        records.sort((a, b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0));
+        console.log(`⚡ [FirebaseSync] Received ${records.length} live OD Loans from Firestore.`);
+
         if (typeof onDataCallback === 'function') {
           onDataCallback(records, snapshot.docChanges());
         }
       },
       (err) => {
-        console.warn("[FirebaseSync] OD Loans query index fallback:", err.message);
-        const fallbackRef = branchInfo.isHeadOffice
-          ? odRef
-          : odRef.where('branchCode', '==', branchInfo.branchCode);
-
-        const fallbackUnsub = fallbackRef.onSnapshot((snapshot) => {
-          const records = [];
-          snapshot.forEach(doc => {
-            const d = doc.data();
-            records.push({
-              id: doc.id,
-              accountNo: doc.id,
-              branchCode: d.branchCode || '99',
-              customerName: d.customerName || (d.payload && d.payload.customerName) || 'UNNAMED',
-              customerId: d.customerId || (d.payload && d.payload.customerId) || '',
-              amount: d.amount || (d.payload && d.payload.odLimit) || '0',
-              status: d.status || 'ACTIVE',
-              updatedAt: d.updatedAtIso || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
-              data: d.payload || d
-            });
-          });
-          if (typeof onDataCallback === 'function') {
-            onDataCallback(records, snapshot.docChanges());
-          }
-        });
-        activeSubscriptions[unsubKey] = fallbackUnsub;
+        console.error("❌ [FirebaseSync] Error listening to OD Loans:", err.message);
       }
     );
 
@@ -434,7 +377,7 @@
           }
         });
       }, (err) => {
-        console.warn("[FirebaseSync] Deleted records subscription error:", err.message);
+        console.warn("[FirebaseSync] Deleted records subscription notice:", err.message);
       });
 
     activeSubscriptions[unsubKey] = unsub;
@@ -459,7 +402,9 @@
     const rawBranch = record.branchCode || record.branch || branchInfo.branchCode;
     const cleanBranch = String(rawBranch).replace(/\D/g, '').padStart(2, '0') || '99';
 
-    const formData = record.data || record.payload || record;
+    const formData = (record.data && typeof record.data === 'object') ? record.data : 
+                     (record.payload && typeof record.payload === 'object') ? record.payload : record;
+    
     const custName = record.customerName || formData.firstFullName || 'UNNAMED';
     const custId = record.customerId || formData.firstCustomerId || 'TJCCB';
     const scheme = record.depositScheme || formData.typeOfDeposit || 'FIXED DEPOSIT (FD)';
@@ -483,7 +428,7 @@
       payload: formData,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAtIso: nowIso,
-      createdBy: auth.currentUser ? auth.currentUser.uid : 'staff'
+      createdBy: (auth && auth.currentUser) ? auth.currentUser.uid : 'staff'
     };
 
     if (!record.createdAt) {
@@ -517,7 +462,7 @@
         branchCode: bCode,
         deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
         deletedAtIso: new Date().toISOString(),
-        deletedBy: deletedBy || (auth.currentUser ? auth.currentUser.uid : 'staff')
+        deletedBy: deletedBy || ((auth && auth.currentUser) ? auth.currentUser.uid : 'staff')
       });
       console.log(`🗑️ [FirebaseSync] Deleted FD Form /fdForms/${cleanId}`);
       logActivity('DELETE_FD_FORM', 'fd', { formId: cleanId, branchCode: bCode }).catch(() => {});
@@ -542,7 +487,9 @@
     const rawBranch = loan.branchCode || loan.branch || branchInfo.branchCode;
     const cleanBranch = String(rawBranch).replace(/\D/g, '').padStart(2, '0') || '99';
 
-    const loanPayload = loan.data || loan.payload || loan;
+    const loanPayload = (loan.data && typeof loan.data === 'object') ? loan.data : 
+                        (loan.payload && typeof loan.payload === 'object') ? loan.payload : loan;
+    
     const custName = loan.customerName || loanPayload.customerName || 'UNNAMED';
     const custId = loan.customerId || loanPayload.customerId || '';
     const amount = loan.amount || loanPayload.loanAmount || loanPayload.sanctionAmount || '0';
@@ -558,7 +505,7 @@
       payload: loanPayload,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAtIso: nowIso,
-      createdBy: auth.currentUser ? auth.currentUser.uid : 'staff'
+      createdBy: (auth && auth.currentUser) ? auth.currentUser.uid : 'staff'
     };
 
     if (!loan.createdAt) {
@@ -567,7 +514,7 @@
 
     await db.collection('goldLoans').doc(cleanId).set(docPayload, { merge: true });
     
-    // Dual write to legacy /loans collection for backwards compatibility
+    // Legacy support
     try {
       await db.collection('loans').doc(cleanId).set(docPayload, { merge: true });
     } catch (e) { }
@@ -598,7 +545,7 @@
         branchCode: bCode,
         deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
         deletedAtIso: new Date().toISOString(),
-        deletedBy: deletedBy || (auth.currentUser ? auth.currentUser.uid : 'staff')
+        deletedBy: deletedBy || ((auth && auth.currentUser) ? auth.currentUser.uid : 'staff')
       });
       console.log(`🗑️ [FirebaseSync] Deleted Gold Loan /goldLoans/${cleanId}`);
       logActivity('DELETE_GOLD_LOAN', 'gold', { loanId: cleanId, branchCode: bCode }).catch(() => {});
@@ -623,7 +570,9 @@
     const rawBranch = odData.branchCode || odData.branch || branchInfo.branchCode;
     const cleanBranch = String(rawBranch).replace(/\D/g, '').padStart(2, '0') || '99';
 
-    const payload = odData.data || odData.payload || odData;
+    const payload = (odData.data && typeof odData.data === 'object') ? odData.data : 
+                    (odData.payload && typeof odData.payload === 'object') ? odData.payload : odData;
+    
     const custName = odData.customerName || payload.customerName || 'UNNAMED';
     const custId = odData.customerId || payload.customerId || '';
     const amount = odData.amount || payload.odLimit || payload.loanAmount || '0';
@@ -639,7 +588,7 @@
       payload: payload,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAtIso: nowIso,
-      createdBy: auth.currentUser ? auth.currentUser.uid : 'staff'
+      createdBy: (auth && auth.currentUser) ? auth.currentUser.uid : 'staff'
     };
 
     if (!odData.createdAt) {
@@ -671,7 +620,7 @@
         branchCode: bCode,
         deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
         deletedAtIso: new Date().toISOString(),
-        deletedBy: deletedBy || (auth.currentUser ? auth.currentUser.uid : 'staff')
+        deletedBy: deletedBy || ((auth && auth.currentUser) ? auth.currentUser.uid : 'staff')
       });
       console.log(`🗑️ [FirebaseSync] Deleted OD Loan /odLoans/${cleanId}`);
       logActivity('DELETE_OD_LOAN', 'od', { odId: cleanId, branchCode: bCode }).catch(() => {});
@@ -702,31 +651,10 @@
         details: details || {},
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         timestampIso: new Date().toISOString(),
-        userId: auth.currentUser ? auth.currentUser.uid : 'staff'
+        userId: (auth && auth.currentUser) ? auth.currentUser.uid : 'staff'
       });
     } catch (e) { }
   }
-
-  const DEFAULT_JCCB_BRANCHES = [
-    { code: "99", branchCode: "99", name: "99 HEAD OFFICE", shortName: "HO", branchNameGuj: "૯૯ હેડ ઓફિસ (મુખ્ય કચેરી)", role: "admin", isHeadOffice: true },
-    { code: "01", branchCode: "01", name: "01 AZADCHOWK BRANCH", shortName: "CBB", branchNameGuj: "૦૧ આઝાદચોક શાખા", role: "branch", isHeadOffice: false },
-    { code: "02", branchCode: "02", name: "02 JOSHIPARA BRANCH", shortName: "JPB", branchNameGuj: "૦૨ જોશીપરા શાખા", role: "branch", isHeadOffice: false },
-    { code: "03", branchCode: "03", name: "03 DOLATPARA BRANCH", shortName: "DPB", branchNameGuj: "૦૩ દોલતપરા શાખા", role: "branch", isHeadOffice: false },
-    { code: "04", branchCode: "04", name: "04 KODINAR BRANCH", shortName: "KDR", branchNameGuj: "૦૪ કોડીનાર શાખા", role: "branch", isHeadOffice: false },
-    { code: "05", branchCode: "05", name: "05 KESHOD BRANCH", shortName: "KSD", branchNameGuj: "૦૫ કેશોદ શાખા", role: "branch", isHeadOffice: false },
-    { code: "06", branchCode: "06", name: "06 VANTHALI BRANCH", shortName: "VTL", branchNameGuj: "૦૬ વંથલી શાખા", role: "branch", isHeadOffice: false },
-    { code: "07", branchCode: "07", name: "07 MANAVADAR BRANCH", shortName: "MNV", branchNameGuj: "૦૭ માણાવદર શાખા", role: "branch", isHeadOffice: false },
-    { code: "08", branchCode: "08", name: "08 GANDHINAGAR BRANCH", shortName: "GNB", branchNameGuj: "૦૮ ગાંધીનગર શાખા", role: "branch", isHeadOffice: false },
-    { code: "09", branchCode: "09", name: "09 LIMBDI BRANCH", shortName: "LIM", branchNameGuj: "૦૯ લીંબડી શાખા", role: "branch", isHeadOffice: false },
-    { code: "10", branchCode: "10", name: "10 MENDARDA BRANCH", shortName: "MND", branchNameGuj: "૧૦ મેંદરડા શાખા", role: "branch", isHeadOffice: false },
-    { code: "11", branchCode: "11", name: "11 VISAVADAR BRANCH", shortName: "VIS", branchNameGuj: "૧૧ વિસાવદર શાખા", role: "branch", isHeadOffice: false },
-    { code: "12", branchCode: "12", name: "12 JAMNAGAR BRANCH", shortName: "JAM", branchNameGuj: "૧૨ જામનગર શાખા", role: "branch", isHeadOffice: false },
-    { code: "13", branchCode: "13", name: "13 BUS STAND BRANCH", shortName: "STB", branchNameGuj: "૧૩ બસ સ્ટેન્ડ શાખા", role: "branch", isHeadOffice: false },
-    { code: "14", branchCode: "14", name: "14 LATHI BRANCH", shortName: "LTH", branchNameGuj: "૧૪ લાઠી શાખા", role: "branch", isHeadOffice: false },
-    { code: "16", branchCode: "16", name: "16 AHMEDABAD BRANCH", shortName: "AHM", branchNameGuj: "૧૬ અમદાવાદ શાખા", role: "branch", isHeadOffice: false },
-    { code: "17", branchCode: "17", name: "17 RAJKOT BRANCH", shortName: "RJT", branchNameGuj: "૧૭ રાજકોટ શાખા", role: "branch", isHeadOffice: false },
-    { code: "18", branchCode: "18", name: "18 ZANZARDA BRANCH", shortName: "ZAN", branchNameGuj: "૧૮ ઝાંઝરડા શાખા", role: "branch", isHeadOffice: false }
-  ];
 
   /**
    * Fetch master branches list from /branches (auto-seeds default branches on first run)
