@@ -223,20 +223,30 @@ const FDApp = {
     // 1. Lock Branch Select dropdown in FD Entry Form
     const branchSelect = document.getElementById('branchName');
     if (branchSelect) {
-      const codeNum = String(session.code || '').trim().replace(/\D/g, '');
+      const codeStr = String(session.code || '').padStart(2, '0');
       let matchedVal = null;
 
       for (let i = 0; i < branchSelect.options.length; i++) {
         const opt = branchSelect.options[i];
-        const optVal = opt.value.toUpperCase();
-        const optText = opt.text.toUpperCase();
+        if (opt.dataset && opt.dataset.branchCode === codeStr) {
+          matchedVal = opt.value;
+          break;
+        }
+      }
 
-        if (codeNum && (optVal.includes(`(${session.code})`) || optText.startsWith(`${codeNum} -`) || optText.includes(`[${codeNum}]`))) {
-          matchedVal = opt.value;
-          break;
-        } else if (session.name && (optVal.includes(session.name.toUpperCase()) || optText.includes(session.name.toUpperCase()))) {
-          matchedVal = opt.value;
-          break;
+      if (!matchedVal) {
+        for (let i = 0; i < branchSelect.options.length; i++) {
+          const opt = branchSelect.options[i];
+          const optVal = opt.value.toUpperCase();
+          const optText = opt.text.toUpperCase();
+
+          if (codeStr && (optVal.includes(`(${session.code})`) || optText.startsWith(`${parseInt(codeStr, 10)} -`) || optText.includes(`[${codeStr}]`))) {
+            matchedVal = opt.value;
+            break;
+          } else if (session.name && (optVal.includes(session.name.toUpperCase()) || optText.includes(session.name.toUpperCase()))) {
+            matchedVal = opt.value;
+            break;
+          }
         }
       }
 
@@ -1198,6 +1208,13 @@ const FDApp = {
         }
       }
     });
+
+    const branchSelect = document.getElementById('branchName');
+    if (branchSelect && branchSelect.selectedOptions && branchSelect.selectedOptions[0]) {
+      data.branchCode = branchSelect.selectedOptions[0].dataset.branchCode || '';
+      data.branchName = branchSelect.value;
+    }
+
     return data;
   },
 
@@ -1493,6 +1510,8 @@ const FDApp = {
       customerName: custName,
       customerId: custId,
       branch: data['branchName'] || 'HEAD OFFICE',
+      branchName: data['branchName'] || 'HEAD OFFICE',
+      branchCode: data.branchCode || '99',
       depositScheme: data['typeOfDeposit'] || 'FIXED DEPOSIT (FD)',
       amount: data['deposit1Amount'] || '0',
       roi: data['deposit1Roi'] || '0.00',
@@ -1592,7 +1611,7 @@ const FDApp = {
     this.updateRegisterBadgeCount();
 
     const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
-    const userBranch = String(this.currentSession ? this.currentSession.code : '99').replace(/\D/g, '').padStart(2, '0');
+    const userBranch = String(this.currentSession ? this.currentSession.code : '99').padStart(2, '0');
     const selectedBranchFilter = this.selectedRegisterBranch || (isHO ? 'ALL' : userBranch);
 
     // Sort entries by createdAt timestamp in descending order (Newest first)
@@ -1602,13 +1621,13 @@ const FDApp = {
     if (!isHO) {
       // Branch user can ONLY see their own branch's entries
       sortedEntries = sortedEntries.filter(item => {
-        const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || (item.branch ? item.branch.replace(/\D/g, '') : '') || '').padStart(2, '0');
+        const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || '').padStart(2, '0');
         return itemBranch === userBranch;
       });
     } else if (selectedBranchFilter !== 'ALL') {
       // Head office filtered by specific branch
       sortedEntries = sortedEntries.filter(item => {
-        const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || (item.branch ? item.branch.replace(/\D/g, '') : '') || '').padStart(2, '0');
+        const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || '').padStart(2, '0');
         return itemBranch === selectedBranchFilter;
       });
     }
@@ -1626,23 +1645,22 @@ const FDApp = {
             <select id="fdRegisterBranchFilter" onchange="FDApp.changeRegisterBranchFilter(this.value)" class="bg-slate-800 text-amber-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-600 focus:outline-none focus:border-amber-400">
               <option value="ALL" ${selectedBranchFilter === 'ALL' ? 'selected' : ''}>🌟 All Branches (બધી શાખાઓ)</option>
               <option value="99" ${selectedBranchFilter === '99' ? 'selected' : ''}>99 HEAD OFFICE</option>
-              <option value="01" ${selectedBranchFilter === '01' ? 'selected' : ''}>01 STATION ROAD</option>
-              <option value="02" ${selectedBranchFilter === '02' ? 'selected' : ''}>02 BUS STAND ROAD</option>
-              <option value="03" ${selectedBranchFilter === '03' ? 'selected' : ''}>03 VEJALPUR BRANCH</option>
-              <option value="04" ${selectedBranchFilter === '04' ? 'selected' : ''}>04 JOSHIPURA BRANCH</option>
-              <option value="05" ${selectedBranchFilter === '05' ? 'selected' : ''}>05 BILKHA BRANCH</option>
-              <option value="06" ${selectedBranchFilter === '06' ? 'selected' : ''}>06 VISAVADAR BRANCH</option>
-              <option value="07" ${selectedBranchFilter === '07' ? 'selected' : ''}>07 BHEESAN BRANCH</option>
-              <option value="08" ${selectedBranchFilter === '08' ? 'selected' : ''}>08 MENDARDA BRANCH</option>
-              <option value="09" ${selectedBranchFilter === '09' ? 'selected' : ''}>09 TALALA BRANCH</option>
-              <option value="10" ${selectedBranchFilter === '10' ? 'selected' : ''}>10 VERAVAL BRANCH</option>
-              <option value="11" ${selectedBranchFilter === '11' ? 'selected' : ''}>11 KESHOD BRANCH</option>
-              <option value="12" ${selectedBranchFilter === '12' ? 'selected' : ''}>12 MANAVADAR BRANCH</option>
-              <option value="13" ${selectedBranchFilter === '13' ? 'selected' : ''}>13 KANJHA BRANCH</option>
-              <option value="14" ${selectedBranchFilter === '14' ? 'selected' : ''}>14 VANTHALI BRANCH</option>
-              <option value="15" ${selectedBranchFilter === '15' ? 'selected' : ''}>15 SHAPUR BRANCH</option>
-              <option value="16" ${selectedBranchFilter === '16' ? 'selected' : ''}>16 SARDARBAUG BRANCH</option>
-              <option value="17" ${selectedBranchFilter === '17' ? 'selected' : ''}>17 GANDHIGRAM BRANCH</option>
+              <option value="01" ${selectedBranchFilter === '01' ? 'selected' : ''}>01 AZADCHOWK BRANCH</option>
+              <option value="02" ${selectedBranchFilter === '02' ? 'selected' : ''}>02 JOSHIPARA BRANCH</option>
+              <option value="03" ${selectedBranchFilter === '03' ? 'selected' : ''}>03 DOLATPARA BRANCH</option>
+              <option value="04" ${selectedBranchFilter === '04' ? 'selected' : ''}>04 KODINAR BRANCH</option>
+              <option value="05" ${selectedBranchFilter === '05' ? 'selected' : ''}>05 KESHOD BRANCH</option>
+              <option value="06" ${selectedBranchFilter === '06' ? 'selected' : ''}>06 VANTHALI BRANCH</option>
+              <option value="07" ${selectedBranchFilter === '07' ? 'selected' : ''}>07 MANAVADAR BRANCH</option>
+              <option value="08" ${selectedBranchFilter === '08' ? 'selected' : ''}>08 GANDHINAGAR BRANCH</option>
+              <option value="09" ${selectedBranchFilter === '09' ? 'selected' : ''}>09 LIMBDI BRANCH</option>
+              <option value="10" ${selectedBranchFilter === '10' ? 'selected' : ''}>10 MENDARDA BRANCH</option>
+              <option value="11" ${selectedBranchFilter === '11' ? 'selected' : ''}>11 VISAVADAR BRANCH</option>
+              <option value="12" ${selectedBranchFilter === '12' ? 'selected' : ''}>12 JAMNAGAR BRANCH</option>
+              <option value="13" ${selectedBranchFilter === '13' ? 'selected' : ''}>13 BUS STAND BRANCH</option>
+              <option value="14" ${selectedBranchFilter === '14' ? 'selected' : ''}>14 LATHI BRANCH</option>
+              <option value="16" ${selectedBranchFilter === '16' ? 'selected' : ''}>16 AHMEDABAD BRANCH</option>
+              <option value="17" ${selectedBranchFilter === '17' ? 'selected' : ''}>17 RAJKOT BRANCH</option>
               <option value="18" ${selectedBranchFilter === '18' ? 'selected' : ''}>18 ZANZARDA BRANCH</option>
             </select>
           </div>

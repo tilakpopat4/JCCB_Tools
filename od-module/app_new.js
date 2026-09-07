@@ -230,20 +230,30 @@ const OverdraftApp = {
     // 1. Lock Branch Select dropdown in Form
     const branchSelect = document.getElementById('branchSelect');
     if (branchSelect) {
-      const codeNum = String(session.code || '').trim().replace(/\D/g, '');
+      const codeStr = String(session.code || '').padStart(2, '0');
       let matchedVal = null;
 
       for (let i = 0; i < branchSelect.options.length; i++) {
         const opt = branchSelect.options[i];
-        const optVal = opt.value.toUpperCase();
-        const optText = opt.text.toUpperCase();
+        if (opt.dataset && opt.dataset.branchCode === codeStr) {
+          matchedVal = opt.value;
+          break;
+        }
+      }
 
-        if (codeNum && (optVal.startsWith(codeNum) || optText.startsWith(codeNum) || optVal.includes(`[${codeNum}]`))) {
-          matchedVal = opt.value;
-          break;
-        } else if (session.name && (optVal.includes(session.name.toUpperCase()) || optText.includes(session.name.toUpperCase()))) {
-          matchedVal = opt.value;
-          break;
+      if (!matchedVal) {
+        for (let i = 0; i < branchSelect.options.length; i++) {
+          const opt = branchSelect.options[i];
+          const optVal = opt.value.toUpperCase();
+          const optText = opt.text.toUpperCase();
+
+          if (codeStr && (optVal.startsWith(codeStr) || optText.startsWith(codeStr) || optVal.includes(`[${codeStr}]`))) {
+            matchedVal = opt.value;
+            break;
+          } else if (session.name && (optVal.includes(session.name.toUpperCase()) || optText.includes(session.name.toUpperCase()))) {
+            matchedVal = opt.value;
+            break;
+          }
         }
       }
 
@@ -308,14 +318,14 @@ const OverdraftApp = {
     
     if (branchSelect) {
       branchSelect.innerHTML = BRANCH_MASTER.map(b => 
-        `<option value="${b.code} - ${b.name} [${b.shortName}]">${b.code} - ${b.name} [${b.shortName}]</option>`
+        `<option value="${b.code} - ${b.name} [${b.shortName}]" data-branch-code="${b.code}">${b.code} - ${b.name} [${b.shortName}]</option>`
       ).join('');
       branchSelect.value = "01 - AZADCHOWK BRANCH [CBB]";
     }
 
     if (filterBranch) {
       filterBranch.innerHTML = '<option value="">-- તમામ શાખાઓ (ALL BRANCHES) --</option>' +
-        BRANCH_MASTER.map(b => `<option value="${b.name}">${b.code} - ${b.name}</option>`).join('');
+        BRANCH_MASTER.map(b => `<option value="${b.code}" data-branch-code="${b.code}">${b.code} - ${b.name}</option>`).join('');
     }
   },
 
@@ -538,7 +548,9 @@ const OverdraftApp = {
 
   // Save Record To Local Storage
   saveRecord() {
-    const branchName = document.getElementById('branchSelect')?.value || '';
+    const branchSelect = document.getElementById('branchSelect');
+    const branchName = branchSelect?.value || '';
+    const branchCode = branchSelect?.selectedOptions?.[0]?.dataset?.branchCode || (branchName ? String(branchName).slice(0, 2) : '99');
     const loanDate = document.getElementById('loanDate')?.value || '';
     const cust1Id = (document.getElementById('customerId_1') || document.getElementById('cust1Id'))?.value.trim() || '';
     const cust1Name = (document.getElementById('customerName_1') || document.getElementById('cust1Name'))?.value.trim() || '';
@@ -602,6 +614,7 @@ const OverdraftApp = {
       createdAt: this.currentRecordId ? (this.getRecord(this.currentRecordId)?.createdAt || Date.now()) : Date.now(),
       updatedAt: Date.now(),
       branchName,
+      branchCode,
       loanDate,
       applicant1: { id: cust1Id, name: cust1Name.toUpperCase(), address: cust1Address.toUpperCase() },
       jointApplicants,
@@ -784,13 +797,13 @@ const OverdraftApp = {
     const filterBranch = (document.getElementById('filterBranch')?.value || '').trim().toLowerCase();
 
     const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
-    const userBranch = String(this.currentSession ? this.currentSession.code : '99').replace(/\D/g, '').padStart(2, '0');
+    const userBranch = String(this.currentSession ? this.currentSession.code : '99').padStart(2, '0');
 
     // Auto lock the branch filter in UI if not HO
     const filterBranchEl = document.getElementById('filterBranch');
     if (filterBranchEl) {
       if (!isHO) {
-        filterBranchEl.value = this.currentSession.name || userBranch;
+        filterBranchEl.value = userBranch;
         filterBranchEl.disabled = true;
         filterBranchEl.classList.add('bg-slate-100', 'cursor-not-allowed');
       } else {
@@ -807,11 +820,11 @@ const OverdraftApp = {
         (r.fdReceipts && r.fdReceipts.some(f => f.certNo && f.certNo.toLowerCase().includes(search)));
 
       let matchBranch = true;
+      const rBranch = String(r.branchCode || (r.branchName ? r.branchName.slice(0, 2) : '') || '').padStart(2, '0');
       if (!isHO) {
-        const rBranch = String(r.branchCode || (r.branchName ? r.branchName.replace(/\D/g, '') : '') || '').padStart(2, '0');
-        matchBranch = (rBranch === userBranch) || (r.branchName && r.branchName.toUpperCase().includes((this.currentSession.name || '').toUpperCase()));
+        matchBranch = (rBranch === userBranch);
       } else if (filterBranch) {
-        matchBranch = (r.branchName && r.branchName.toLowerCase().includes(filterBranch));
+        matchBranch = (rBranch === filterBranch.padStart(2, '0') || (r.branchName && r.branchName.toLowerCase().includes(filterBranch)));
       }
 
       return matchSearch && matchBranch;
@@ -872,13 +885,13 @@ const OverdraftApp = {
   // Update Report Metrics
   updateReportMetrics() {
     const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
-    const userBranch = String(this.currentSession ? this.currentSession.code : '99').replace(/\D/g, '').padStart(2, '0');
+    const userBranch = String(this.currentSession ? this.currentSession.code : '99').padStart(2, '0');
 
     let records = Object.values(this.getAllRecords());
     if (!isHO) {
       records = records.filter(r => {
-        const rBranch = String(r.branchCode || (r.branchName ? r.branchName.replace(/\D/g, '') : '') || '').padStart(2, '0');
-        return (rBranch === userBranch) || (r.branchName && r.branchName.toUpperCase().includes((this.currentSession.name || '').toUpperCase()));
+        const rBranch = String(r.branchCode || (r.branchName ? r.branchName.slice(0, 2) : '') || '').padStart(2, '0');
+        return (rBranch === userBranch);
       });
     }
 

@@ -281,6 +281,73 @@ const PostgresSync = (function () {
         badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> <span>Neon DB: Connect...</span>`;
       }
     });
+  }  // ==========================================
+  // JCCB OFFICIAL BRANCH CODE RESOLVER
+  // ==========================================
+  const BRANCH_NAME_TO_CODE = {
+    'AZADCHOWK': '01',
+    'JOSHIPARA': '02',
+    'DOLATPARA': '03',
+    'KODINAR': '04',
+    'KESHOD': '05',
+    'VANTHALI': '06',
+    'MANAVADAR': '07',
+    'GANDHINAGAR': '08',
+    'LIMBDI': '09',
+    'MENDARDA': '10',
+    'VISAVADAR': '11',
+    'JAMNAGAR': '12',
+    'BUS STAND': '13',
+    'LATHI': '14',
+    'AHMEDABAD': '16',
+    'RAJKOT': '17',
+    'ZANZARDA': '18',
+    'HEAD OFFICE': '99',
+    'HO': '99',
+    'CBB': '01',
+    'JPB': '02',
+    'DBP': '03',
+    'DPB': '03',
+    'KDR': '04',
+    'KSD': '05',
+    'VTL': '06',
+    'MNV': '07',
+    'GNB': '08',
+    'LIM': '09',
+    'MEN': '10',
+    'MND': '10',
+    'VIS': '11',
+    'JMB': '12',
+    'JAM': '12',
+    'STB': '13',
+    'LTH': '14',
+    'AHM': '16',
+    'RJT': '17',
+    'ZAN': '18'
+  };
+
+  function resolveBranchCode(input) {
+    if (!input && input !== 0) return '99';
+    const str = String(input).trim().toUpperCase();
+    if (!str || str === 'ALL') return 'ALL';
+    if (str === 'HO' || str === 'HEAD OFFICE' || str === '99') return '99';
+    if (/^\d{1,2}$/.test(str)) {
+      return str.padStart(2, '0');
+    }
+    const matchPrefix = str.match(/^(\d{1,2})\s*[-_]/);
+    if (matchPrefix) {
+      return matchPrefix[1].padStart(2, '0');
+    }
+    for (const [nameKey, code] of Object.entries(BRANCH_NAME_TO_CODE)) {
+      if (str.includes(nameKey)) {
+        return code;
+      }
+    }
+    const digits = str.replace(/\D/g, '');
+    if (digits.length > 0 && digits.length <= 2) {
+      return digits.padStart(2, '0');
+    }
+    return '99';
   }
 
   // ==========================================
@@ -289,9 +356,8 @@ const PostgresSync = (function () {
   async function syncGoldLoan(loan) {
     try {
       const id = String(loan.id || loan.loanNo || loan.proposalNo || Date.now()).trim();
-      let bCode = String(loan.branchCode || loan.branchId || (loan.branchName ? loan.branchName.replace(/\D/g, '') : '') || "99").trim();
-      if (bCode.length === 1) bCode = '0' + bCode;
-      const branchCode = bCode || "99";
+      const rawBranch = loan.branchCode || loan.branchId || loan.branchName || (loan.data && loan.data.branchCode) || (loan.data && loan.data.branchName);
+      const branchCode = resolveBranchCode(rawBranch);
       const loanNo = String(loan.loanNo || loan.proposalNo || loan.id || "");
       const customerName = String(loan.customerName || loan.borrowerName || "").toUpperCase();
       const phone = String(loan.phone || loan.mobile || "");
@@ -299,7 +365,7 @@ const PostgresSync = (function () {
       const sanctionDate = String(loan.sanctionDate || loan.date || new Date().toISOString().split("T")[0]);
       const status = String(loan.status || loan.loanStatus || "ACTIVE").toUpperCase();
 
-      const payload = { ...loan, id, updatedAt: loan.updatedAt || new Date().toISOString() };
+      const payload = { ...loan, id, branchCode, updatedAt: loan.updatedAt || new Date().toISOString() };
 
       const sql = `
         INSERT INTO jccb_gold_loans (id, branch_code, loan_no, customer_name, phone, sanction_amount, sanction_date, status, payload, updated_at)
@@ -346,7 +412,7 @@ const PostgresSync = (function () {
         sql = "SELECT payload FROM jccb_gold_loans ORDER BY updated_at DESC;";
         params = [];
       } else {
-        let bCode = String(branchCode).replace(/\D/g, '').padStart(2, '0');
+        let bCode = resolveBranchCode(branchCode);
         sql = "SELECT payload FROM jccb_gold_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
         params = [bCode];
       }
@@ -405,7 +471,7 @@ const PostgresSync = (function () {
       await runNeonQuery(sql, [key, JSON.stringify(payloadObj)]);
       return true;
     } catch (e) {
-      console.warn(`[PostgresSync] Sync settings (${key}) error:`, e);
+      console.warn(`[PostgresSync] Save settings (${key}) error:`, e);
       return false;
     }
   }
@@ -426,17 +492,16 @@ const PostgresSync = (function () {
   async function syncFDForm(form) {
     try {
       const id = String(form.formNo || form.id || Date.now()).trim();
-      let bCode = String(form.branchCode || (form.data && form.data.branchCode) || form.branchId || (form.branch ? form.branch.replace(/\D/g, '') : '') || "99").trim();
-      if (bCode.length === 1) bCode = '0' + bCode;
-      const branchCode = bCode || "99";
+      const rawBranch = form.branchCode || (form.data && form.data.branchCode) || form.branchId || form.branchName || form.branch || (form.data && form.data.branchName);
+      const branchCode = resolveBranchCode(rawBranch);
       const formNo = String(form.formNo || form.id || "");
-      const customerName = String(form.customerName || form.applicantName || (form.data && form.data.cust1Name) || "").toUpperCase();
+      const customerName = String(form.customerName || form.applicantName || (form.data && form.data.firstFullName) || (form.data && form.data.cust1Name) || "").toUpperCase();
       const depositAmount = Number(form.depositAmount || form.amount || (form.data && form.data.deposit1Amount) || 0);
       const interestRate = Number(form.interestRate || form.roi || form.rate || (form.data && form.data.deposit1Roi) || 0);
       const tenureMonths = Number(form.tenureMonths || form.months || 12);
       const status = String(form.status || "COMPLETED").toUpperCase();
 
-      const payload = { ...form, id, updatedAt: form.updatedAt || new Date().toISOString() };
+      const payload = { ...form, id, branchCode, updatedAt: form.updatedAt || new Date().toISOString() };
 
       const sql = `
         INSERT INTO jccb_fd_forms (id, branch_code, form_no, customer_name, deposit_amount, interest_rate, tenure_months, status, payload, updated_at)
@@ -482,7 +547,7 @@ const PostgresSync = (function () {
         sql = "SELECT payload FROM jccb_fd_forms ORDER BY updated_at DESC;";
         params = [];
       } else {
-        let bCode = String(branchCode).replace(/\D/g, '').padStart(2, '0');
+        let bCode = resolveBranchCode(branchCode);
         sql = "SELECT payload FROM jccb_fd_forms WHERE branch_code = $1 ORDER BY updated_at DESC;";
         params = [bCode];
       }
@@ -500,16 +565,15 @@ const PostgresSync = (function () {
   async function syncODLoan(od) {
     try {
       const id = String(od.accountNo || od.id || Date.now()).trim();
-      let bCode = String(od.branchCode || od.branchId || (od.branchName ? od.branchName.replace(/\D/g, '') : '') || "99").trim();
-      if (bCode.length === 1) bCode = '0' + bCode;
-      const branchCode = bCode || "99";
+      const rawBranch = od.branchCode || od.branchId || od.branchName || (od.data && od.data.branchCode) || (od.data && od.data.branchName);
+      const branchCode = resolveBranchCode(rawBranch);
       const accountNo = String(od.accountNo || od.id || od.savingAccNo || "");
       const customerName = String(od.customerName || (od.applicant1 && od.applicant1.name) || od.borrowerName || "").toUpperCase();
       const limitAmount = Number(od.limitAmount || od.loanAmount || od.sanctionAmount || 0);
       const fdReceiptNo = String(od.fdReceiptNo || (od.fdReceipts && od.fdReceipts[0] ? od.fdReceipts[0].certNo : "") || "");
       const status = String(od.status || "SANCTIONED").toUpperCase();
 
-      const payload = { ...od, id, updatedAt: od.updatedAt || new Date().toISOString() };
+      const payload = { ...od, id, branchCode, updatedAt: od.updatedAt || new Date().toISOString() };
 
       const sql = `
         INSERT INTO jccb_od_loans (id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no, status, payload, updated_at)
@@ -554,7 +618,7 @@ const PostgresSync = (function () {
         sql = "SELECT payload FROM jccb_od_loans ORDER BY updated_at DESC;";
         params = [];
       } else {
-        let bCode = String(branchCode).replace(/\D/g, '').padStart(2, '0');
+        let bCode = resolveBranchCode(branchCode);
         sql = "SELECT payload FROM jccb_od_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
         params = [bCode];
       }
