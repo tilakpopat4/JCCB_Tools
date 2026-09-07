@@ -2673,6 +2673,24 @@ function initLoanEntryForm() {
     const addRowBtn = document.getElementById("btn-add-ornament-row");
     const resetBtn = document.getElementById("reset-loan-form-btn");
 
+    // Initialize Lightweight Independent Draft AutoSave
+    if (window.DraftAutoSave && form) {
+        window.goldLoanDraftManager = window.DraftAutoSave.attach({
+            moduleName: 'goldLoan',
+            formElement: form,
+            getFormId: () => (typeof currentEditingLoanId !== 'undefined' && currentEditingLoanId) ? currentEditingLoanId : 'new-record',
+            onRestore: (data) => {
+                console.log("📝 [DraftAutoSave] Restored Gold Loan draft:", data);
+                if (typeof updateLoanAmountLogic === 'function') updateLoanAmountLogic();
+                if (typeof calculateAllCharges === 'function') calculateAllCharges();
+                if (typeof calculateOrnamentsTotal === 'function') calculateOrnamentsTotal();
+            },
+            onDiscard: () => {
+                if (typeof resetLoanEntryForm === 'function') resetLoanEntryForm();
+            }
+        });
+    }
+
     // Default Date
     const loanDateInput = document.getElementById("loan-date");
     if (loanDateInput && !loanDateInput.value) {
@@ -3853,6 +3871,10 @@ function submitLoanEntry() {
         }
 
         saveState();
+        // Clear saved draft only on confirmed save
+        if (window.DraftAutoSave) {
+            window.DraftAutoSave.clearDraft('goldLoan', loanObj.id || currentEditingLoanId || 'new-record');
+        }
         resetLoanEntryForm();
         renderDashboard();
         renderRegisterTable();
@@ -3906,6 +3928,7 @@ function resetLoanEntryForm() {
 
     const form = document.getElementById("gold-loan-form");
     if (form) form.reset();
+    if (window.DraftAutoSave) window.DraftAutoSave.hideBanner('goldLoan');
 
     const proposalNoInp = document.getElementById("unique-proposal-no");
     const packetNoInp = document.getElementById("packet-no");

@@ -152,6 +152,22 @@ const OverdraftApp = {
     this.setupSessionAndBranchLock();
     renderBankLogos();
     this.startRealtimeCloudSync();
+
+    // Initialize Lightweight Independent Draft AutoSave
+    if (window.DraftAutoSave) {
+      this.draftManager = window.DraftAutoSave.attach({
+        moduleName: 'od',
+        formElement: 'overdraftForm',
+        getFormId: () => this.currentRecordId || 'new-record',
+        onRestore: (data) => {
+          console.log("📝 [DraftAutoSave] Restored OD draft:", data);
+          if (typeof this.calcFdTotals === 'function') this.calcFdTotals();
+        },
+        onDiscard: () => {
+          this.resetForm();
+        }
+      });
+    }
   },
 
   unsubscribeOD: null,
@@ -718,6 +734,11 @@ const OverdraftApp = {
 
     alert(`✓ ઓવરડ્રાફ્ટ લોન રેકોર્ડ સફળતાપૂર્વક સેવ થયો!\nગ્રાહકનું નામ: ${cust1Name.toUpperCase()}\nલોન રકમ: ₹ ${loanAmount.toLocaleString('en-IN')}${syncSuccess ? '\n⚡ Synced in Real-Time to Cloud' : ''}`);
     
+    // Clear saved draft only on confirmed save
+    if (window.DraftAutoSave) {
+      window.DraftAutoSave.clearDraft('od', recordId || this.currentRecordId || 'new-record');
+    }
+
     this.currentRecordId = null;
     this.resetForm();
     this.updateRegisterTable();
@@ -822,6 +843,7 @@ const OverdraftApp = {
     this.currentRecordId = null;
     const form = document.getElementById('overdraftForm');
     if (form) form.reset();
+    if (window.DraftAutoSave) window.DraftAutoSave.hideBanner('od');
 
     const c1Id = document.getElementById('customerId_1') || document.getElementById('cust1Id');
     const c1Name = document.getElementById('customerName_1') || document.getElementById('cust1Name');

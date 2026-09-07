@@ -139,6 +139,24 @@ const FDApp = {
     this.setupSessionAndBranchLock();
     this.updateRegisterBadgeCount();
     this.startRealtimeCloudSync();
+
+    // Initialize Lightweight Independent Draft AutoSave
+    if (window.DraftAutoSave) {
+      this.draftManager = window.DraftAutoSave.attach({
+        moduleName: 'fd',
+        formElement: 'fdMainForm',
+        getFormId: () => this.currentEditId || 'new-record',
+        onRestore: (data) => {
+          console.log("📝 [DraftAutoSave] Restored FD draft:", data);
+          if (typeof this.updateAccountTypeVisibility === 'function') this.updateAccountTypeVisibility();
+          if (typeof this.updateNomineeVisibility === 'function') this.updateNomineeVisibility();
+          if (typeof this.syncExtraDepositVisibility === 'function') this.syncExtraDepositVisibility();
+        },
+        onDiscard: () => {
+          this.clearFormCleanly();
+        }
+      });
+    }
   },
 
   unsubscribeFD: null,
@@ -1614,6 +1632,11 @@ const FDApp = {
 
     alert(`✓ Record saved successfully!\nCustomer: ${custName}\nRef ID: ${formId}${syncSuccess ? '\n⚡ Synced in Real-Time to Cloud' : ''}`);
     
+    // Clear saved draft only on confirmed save
+    if (window.DraftAutoSave) {
+      window.DraftAutoSave.clearDraft('fd', formId || this.currentEditId || 'new-record');
+    }
+
     // Clear form so next time user opens FD Entry Form, it is fresh & blank
     this.clearFormCleanly();
 
@@ -1627,6 +1650,7 @@ const FDApp = {
   clearFormCleanly() {
     const form = document.getElementById('fdMainForm');
     if (form) form.reset();
+    if (window.DraftAutoSave) window.DraftAutoSave.hideBanner('fd');
     
     const today = new Date().toISOString().split('T')[0];
     const dateField = document.getElementById('formDate');
