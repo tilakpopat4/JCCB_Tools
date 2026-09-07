@@ -497,9 +497,24 @@
   <script>
     let activeInspection = null;
 
-    // Update Counts on load
+    // Update Counts on load & poll cloud
     async function updateLauncherStats() {
       try {
+        if (window.PostgresSync && window.PostgresSync.fetchAllHeadOfficeData) {
+          const cloudData = await window.PostgresSync.fetchAllHeadOfficeData();
+          if (cloudData) {
+            const gBadge = document.getElementById('gold-records-count');
+            if (gBadge && Array.isArray(cloudData.goldLoans)) gBadge.textContent = `${cloudData.goldLoans.length} Loans`;
+
+            const fdBadge = document.getElementById('fd-records-count');
+            if (fdBadge && cloudData.fdForms) fdBadge.textContent = `${Object.keys(cloudData.fdForms).length} Accounts`;
+
+            const odBadge = document.getElementById('od-records-count');
+            if (odBadge && cloudData.odLoans) odBadge.textContent = `${Object.keys(cloudData.odLoans).length} Loans`;
+            return;
+          }
+        }
+
         if (window.CentralBackup) {
           const gState = await CentralBackup.getGoldState();
           const gCount = (gState.loans || []).length;
@@ -520,6 +535,9 @@
         console.warn("Stats update warning:", e);
       }
     }
+
+    // Live update every 10 seconds
+    setInterval(updateLauncherStats, 10000);
 
     // Download Master
     async function handleMasterExcelDownload() {

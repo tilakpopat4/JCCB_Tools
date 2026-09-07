@@ -7,23 +7,22 @@
 (function () {
   const DEFAULT_BRANCHES = [
     { code: "99", branchCode: "99", name: "99 HEAD OFFICE", shortName: "HO", branchName: "99 HEAD OFFICE", branchNameGuj: "૯૯ મુખ્ય કચેરી", role: "admin", roleTitle: "Super Admin", isActive: true, isHO: true, isHeadOffice: true },
-    { code: "01", branchCode: "01", name: "01 STATION ROAD", shortName: "STR", branchName: "01 STATION ROAD", branchNameGuj: "૦૧ સ્ટેશન રોડ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "02", branchCode: "02", name: "02 BUS STAND ROAD", shortName: "BSR", branchName: "02 BUS STAND ROAD", branchNameGuj: "૦૨ બસ સ્ટેન્ડ રોડ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "03", branchCode: "03", name: "03 VEJALPUR BRANCH", shortName: "VEJ", branchName: "03 VEJALPUR BRANCH", branchNameGuj: "૦૩ વેજલપુર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "04", branchCode: "04", name: "04 JOSHIPURA BRANCH", shortName: "JOS", branchName: "04 JOSHIPURA BRANCH", branchNameGuj: "૦૪ જોશીપુરા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "05", branchCode: "05", name: "05 BILKHA BRANCH", shortName: "BIL", branchName: "05 BILKHA BRANCH", branchNameGuj: "૦૫ બિલખા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "06", branchCode: "06", name: "06 VISAVADAR BRANCH", shortName: "VIS", branchName: "06 VISAVADAR BRANCH", branchNameGuj: "૦૬ વિસાવદર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "07", branchCode: "07", name: "07 BHEESAN BRANCH", shortName: "BHE", branchName: "07 BHEESAN BRANCH", branchNameGuj: "૦૭ ભેંસાણ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "08", branchCode: "08", name: "08 MEND выс BRANCH", shortName: "MEN", branchName: "08 MEND выс BRANCH", branchNameGuj: "૦૮ મેંદરડા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "09", branchCode: "09", name: "09 TALALA BRANCH", shortName: "TAL", branchName: "09 TALALA BRANCH", branchNameGuj: "૦૯ તાલાલા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "10", branchCode: "10", name: "10 VERAVAL BRANCH", shortName: "VER", branchName: "10 VERAVAL BRANCH", branchNameGuj: "૧૦ વેરાવળ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "11", branchCode: "11", name: "11 KESHOD BRANCH", shortName: "KES", branchName: "11 KESHOD BRANCH", branchNameGuj: "૧૧ કેશોદ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "12", branchCode: "12", name: "12 MANAVADAR BRANCH", shortName: "MAN", branchName: "12 MANAVADAR BRANCH", branchNameGuj: "૧૨ માણાવદર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "13", branchCode: "13", name: "13 KANJHA BRANCH", shortName: "KAN", branchName: "13 KANJHA BRANCH", branchNameGuj: "૧૩ કાંજળા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "14", branchCode: "14", name: "14 VANTHALI BRANCH", shortName: "VAN", branchName: "14 VANTHALI BRANCH", branchNameGuj: "૧૪ વંથલી શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "15", branchCode: "15", name: "15 SHAPUR BRANCH", shortName: "SHA", branchName: "15 SHAPUR BRANCH", branchNameGuj: "૧૫ સાપુર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "16", branchCode: "16", name: "16 SARDARBAUG BRANCH", shortName: "SAR", branchName: "16 SARDARBAUG BRANCH", branchNameGuj: "૧૬ સરદારબાગ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
-    { code: "17", branchCode: "17", name: "17 GANDHIGRAM BRANCH", shortName: "GAN", branchName: "17 GANDHIGRAM BRANCH", branchNameGuj: "૧૭ ગાંધીગ્રામ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "01", branchCode: "01", name: "01 AZADCHOWK BRANCH", shortName: "CBB", branchName: "01 AZADCHOWK BRANCH", branchNameGuj: "૦૧ આઝાદચોક શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "02", branchCode: "02", name: "02 JOSHIPARA BRANCH", shortName: "JPB", branchName: "02 JOSHIPARA BRANCH", branchNameGuj: "૦૨ જોશીપુરા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "03", branchCode: "03", name: "03 DOLATPARA BRANCH", shortName: "DPB", branchName: "03 DOLATPARA BRANCH", branchNameGuj: "૦૩ દોલતપરા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "04", branchCode: "04", name: "04 KODINAR BRANCH", shortName: "KDR", branchName: "04 KODINAR BRANCH", branchNameGuj: "૦૪ કોડીનાર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "05", branchCode: "05", name: "05 KESHOD BRANCH", shortName: "KSD", branchName: "05 KESHOD BRANCH", branchNameGuj: "૦૫ કેશોદ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "06", branchCode: "06", name: "06 VANTHALI BRANCH", shortName: "VTL", branchName: "06 VANTHALI BRANCH", branchNameGuj: "૦૬ વંથલી શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "07", branchCode: "07", name: "07 MANAVADAR BRANCH", shortName: "MNV", branchName: "07 MANAVADAR BRANCH", branchNameGuj: "૦૭ માણાવદર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "08", branchCode: "08", name: "08 GANDHINAGAR BRANCH", shortName: "GNB", branchName: "08 GANDHINAGAR BRANCH", branchNameGuj: "૦૮ ગાંધીનગર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "09", branchCode: "09", name: "09 LIMBDI BRANCH", shortName: "LIM", branchName: "09 LIMBDI BRANCH", branchNameGuj: "૦૯ લીંબડી શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "10", branchCode: "10", name: "10 MENDARDA BRANCH", shortName: "MND", branchName: "10 MENDARDA BRANCH", branchNameGuj: "૧૦ મેંદરડા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "11", branchCode: "11", name: "11 VISAVADAR BRANCH", shortName: "VIS", branchName: "11 VISAVADAR BRANCH", branchNameGuj: "૧૧ વિસાવદર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "12", branchCode: "12", name: "12 JAMNAGAR BRANCH", shortName: "JAM", branchName: "12 JAMNAGAR BRANCH", branchNameGuj: "૧૨ જામનગર શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "13", branchCode: "13", name: "13 BUS STAND BRANCH", shortName: "STB", branchName: "13 BUS STAND BRANCH", branchNameGuj: "૧૩ બસ સ્ટેન્ડ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "14", branchCode: "14", name: "14 LATHI BRANCH", shortName: "LTH", branchName: "14 LATHI BRANCH", branchNameGuj: "૧૪ લાઠી શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "16", branchCode: "16", name: "16 AHMEDABAD BRANCH", shortName: "AHM", branchName: "16 AHMEDABAD BRANCH", branchNameGuj: "૧૬ અમદાવાદ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
+    { code: "17", branchCode: "17", name: "17 RAJKOT BRANCH", shortName: "RJT", branchName: "17 RAJKOT BRANCH", branchNameGuj: "૧૭ રાજકોટ શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false },
     { code: "18", branchCode: "18", name: "18 ZANZARDA BRANCH", shortName: "ZAN", branchName: "18 ZANZARDA BRANCH", branchNameGuj: "૧૮ ઝાંઝરડા શાખા", role: "branch_manager", roleTitle: "Branch Manager", isActive: true, isHO: false, isHeadOffice: false }
   ];
 
@@ -35,6 +34,9 @@
 
     init: async function () {
       console.log("⚡ [Neon Cloud DB] Gold Loan Portal connected to Neon PostgreSQL (Singapore)");
+      if (window.PostgresSync && window.PostgresSync.init) {
+        await window.PostgresSync.init();
+      }
       this.startBackgroundSync();
       return true;
     },
@@ -48,7 +50,7 @@
     isHeadOffice: function () {
       try {
         const s = JSON.parse(localStorage.getItem("jccb_user_session") || sessionStorage.getItem("jccb_user_session") || "{}");
-        return Boolean(s.isAdmin || s.code === "99" || s.role === "Super Admin");
+        return Boolean(s.isAdmin || s.code === "99" || s.role === "Super Admin" || (s.name && s.name.toUpperCase().includes("HEAD OFFICE")));
       } catch (e) {
         return true;
       }
@@ -71,20 +73,13 @@
     // 1. GOLD LOANS CRUD & LIVE SYNC
     // ==========================================
     saveLoan: async function (loanData) {
-      const loanId = String(loanData.id || loanData.loanId || `GL_${Date.now()}_${loanData.branchCode || "01"}`).trim();
+      const loanId = String(loanData.id || loanData.loanId || loanData.proposalNo || `GL_${Date.now()}_${loanData.branchCode || "01"}`).trim();
       const payload = {
         ...loanData,
         id: loanId,
         loanId: loanId,
-        updatedAt: new Date().toISOString()
+        updatedAt: loanData.updatedAt || new Date().toISOString()
       };
-
-      // Save to local cache first
-      try {
-        const cache = JSON.parse(localStorage.getItem("tjccb_gold_loans_cache") || "{}");
-        cache[loanId] = payload;
-        localStorage.setItem("tjccb_gold_loans_cache", JSON.stringify(cache));
-      } catch (e) { }
 
       // Dual-write to Neon PostgreSQL
       if (window.PostgresSync && window.PostgresSync.syncGoldLoan) {
@@ -96,52 +91,40 @@
 
     getLoans: async function (branchCode = null) {
       let bCode = branchCode;
-      if (!bCode) {
-        if (!this.isHeadOffice()) {
-          bCode = this.getBranchId();
-        }
+      if (!bCode && !this.isHeadOffice()) {
+        bCode = this.getBranchId();
       }
-      if (bCode && typeof bCode === 'string' && bCode.length === 1) bCode = '0' + bCode;
 
-      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+      if (window.PostgresSync && window.PostgresSync.fetchGoldLoans) {
         try {
-          const isAll = !bCode || bCode === "99" || bCode === "ALL" || bCode === "ho";
-          const sql = !isAll
-            ? "SELECT payload FROM jccb_gold_loans WHERE branch_code = $1 ORDER BY updated_at DESC;"
-            : "SELECT payload FROM jccb_gold_loans ORDER BY updated_at DESC;";
-          const params = !isAll ? [String(bCode)] : [];
-          const res = await window.PostgresSync.runNeonQuery(sql, params);
-          if (res && res.rows) {
-            return res.rows.map(r => r.payload || r);
+          const loans = await window.PostgresSync.fetchGoldLoans(bCode);
+          if (Array.isArray(loans) && loans.length > 0) {
+            return loans;
           }
         } catch (e) {
           console.warn("[Neon Cloud] Fallback to local cache for loans:", e);
         }
       }
+
       try {
-        const cache = JSON.parse(localStorage.getItem("tjccb_gold_loans_cache") || "{}");
-        let list = Object.values(cache);
-        if (!this.isHeadOffice()) {
-          const userBranch = String(this.getBranchId() || "").replace(/\D/g, '');
-          list = list.filter(l => String(l.branchCode || l.branchId || (l.branchName ? l.branchName.replace(/\D/g, '') : '') || "").replace(/\D/g, '') === userBranch);
+        const raw = localStorage.getItem("jccb_gold_system_state_v2");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          let list = Array.isArray(parsed.loans) ? parsed.loans : [];
+          if (!this.isHeadOffice() && bCode) {
+            const userBranch = String(bCode).replace(/\D/g, '');
+            list = list.filter(l => String(l.branchCode || l.branchId || "").replace(/\D/g, '') === userBranch);
+          }
+          return list;
         }
-        return list;
-      } catch (e) {
-        return [];
-      }
+      } catch (e) { }
+      return [];
     },
 
     deleteLoan: async function (loanId) {
-      try {
-        const cache = JSON.parse(localStorage.getItem("tjccb_gold_loans_cache") || "{}");
-        delete cache[loanId];
-        localStorage.setItem("tjccb_gold_loans_cache", JSON.stringify(cache));
-      } catch (e) { }
-
-      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+      if (window.PostgresSync && window.PostgresSync.deleteGoldLoan) {
         try {
-          await window.PostgresSync.runNeonQuery("DELETE FROM jccb_gold_loans WHERE id = $1;", [loanId]);
-          await window.PostgresSync.runNeonQuery("INSERT INTO jccb_deleted_records (id, module, deleted_at) VALUES ($1, 'gold', NOW()) ON CONFLICT (id) DO NOTHING;", [loanId]);
+          await window.PostgresSync.deleteGoldLoan(loanId);
         } catch (e) {
           console.warn("[Neon Cloud] Delete loan sync error:", e);
         }
@@ -149,16 +132,26 @@
       return true;
     },
 
+    getDeletedLoanIds: async function () {
+      if (window.PostgresSync && window.PostgresSync.fetchDeletedRecordIds) {
+        try {
+          return await window.PostgresSync.fetchDeletedRecordIds('gold');
+        } catch (e) {
+          return [];
+        }
+      }
+      return [];
+    },
+
     listenLoans: function (branchCode, callback) {
       if (typeof callback !== "function") return;
       this.getLoans(branchCode).then(callback).catch(() => {});
-      // Periodic live poll every 15 seconds
       setInterval(async () => {
         try {
           const loans = await this.getLoans(branchCode);
-          callback(loans);
+          if (Array.isArray(loans)) callback(loans);
         } catch (e) { }
-      }, 15000);
+      }, 10000);
     },
 
     listenDeletedLoans: function (callback) {
@@ -166,13 +159,13 @@
       setInterval(async () => {
         if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
           try {
-            const res = await window.PostgresSync.runNeonQuery("SELECT id FROM jccb_deleted_records WHERE module = 'gold' AND deleted_at > NOW() - INTERVAL '5 minutes';");
+            const res = await window.PostgresSync.runNeonQuery("SELECT id FROM jccb_deleted_records WHERE module = 'gold' AND deleted_at > NOW() - INTERVAL '15 minutes';");
             if (res && res.rows) {
               res.rows.forEach(r => callback(r.id));
             }
           } catch (e) { }
         }
-      }, 20000);
+      }, 15000);
     },
 
     // ==========================================
@@ -181,49 +174,33 @@
     saveDailyRate: async function (dateStr, rateVal) {
       const payload = {
         date: dateStr,
-        rate: Number(rateVal),
+        rate22K: Number(rateVal),
+        rate24K: Math.round(Number(rateVal) * (24 / 22)),
         updatedAt: new Date().toISOString()
       };
-      try {
-        const cache = JSON.parse(localStorage.getItem("tjccb_daily_rates_cache") || "{}");
-        cache[dateStr] = payload;
-        localStorage.setItem("tjccb_daily_rates_cache", JSON.stringify(cache));
-      } catch (e) { }
 
-      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
-        try {
-          const sql = `
-            INSERT INTO jccb_gold_rates (id, date_str, rate, payload, updated_at)
-            VALUES ($1, $2, $3, $4, NOW())
-            ON CONFLICT (id) DO UPDATE SET
-              date_str = EXCLUDED.date_str,
-              rate = EXCLUDED.rate,
-              payload = EXCLUDED.payload,
-              updated_at = NOW();
-          `;
-          await window.PostgresSync.runNeonQuery(sql, [dateStr, dateStr, Number(rateVal), JSON.stringify(payload)]);
-        } catch (e) {
-          console.warn("[Neon Cloud] Save gold rate error:", e);
-        }
+      if (window.PostgresSync && window.PostgresSync.syncGoldRate) {
+        await window.PostgresSync.syncGoldRate(dateStr, rateVal);
       }
       return payload;
     },
 
     getDailyRates: async function () {
-      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+      if (window.PostgresSync && window.PostgresSync.fetchGoldRates) {
         try {
-          const res = await window.PostgresSync.runNeonQuery("SELECT payload FROM jccb_gold_rates ORDER BY date_str DESC;");
-          if (res && res.rows && res.rows.length) {
-            return res.rows.map(r => r.payload || r);
+          const rates = await window.PostgresSync.fetchGoldRates();
+          if (Array.isArray(rates) && rates.length > 0) {
+            // Also augment array with latest rate properties for dual compatibility
+            const latest = rates[0] || {};
+            const r22 = parseFloat(latest.rate22K || latest.rate || 0);
+            rates.rate22K = r22;
+            rates.rate24K = Math.round(r22 * (24 / 22));
+            rates.date = latest.date || latest.date_str || "";
+            return rates;
           }
         } catch (e) { }
       }
-      try {
-        const cache = JSON.parse(localStorage.getItem("tjccb_daily_rates_cache") || "{}");
-        return Object.values(cache);
-      } catch (e) {
-        return [];
-      }
+      return [];
     },
 
     listenDailyRates: function (callback) {
@@ -232,33 +209,61 @@
       setInterval(async () => {
         try {
           const rates = await this.getDailyRates();
-          callback(rates);
+          if (rates) callback(rates);
         } catch (e) { }
-      }, 30000);
+      }, 15000);
     },
 
     // ==========================================
     // 3. MASTER DATA: BRANCHES, VALUERS, CUSTOMERS, PRODUCTS
     // ==========================================
     getBranchesList: async function () {
+      if (window.PostgresSync && window.PostgresSync.fetchGoldSettings) {
+        const branches = await window.PostgresSync.fetchGoldSettings('branches');
+        if (Array.isArray(branches) && branches.length > 0) return branches;
+      }
       return DEFAULT_BRANCHES;
     },
+    saveBranchesList: async function (branches) {
+      if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
+        await window.PostgresSync.syncGoldSettings('branches', branches);
+      }
+      return branches;
+    },
     listenBranches: function (callback) {
-      if (typeof callback === "function") callback(DEFAULT_BRANCHES);
+      if (typeof callback === "function") {
+        this.getBranchesList().then(callback);
+      }
     },
     saveBranch: async function (b) { return b; },
 
     getValuersList: async function () {
+      if (window.PostgresSync && window.PostgresSync.fetchGoldSettings) {
+        const valuers = await window.PostgresSync.fetchGoldSettings('valuers');
+        if (valuers) return valuers;
+      }
       try {
-        return JSON.parse(localStorage.getItem("tjccb_valuers_cache") || "[]");
-      } catch (e) { return []; }
+        const raw = localStorage.getItem("jccb_gold_system_state_v2");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return parsed.valuers || [];
+        }
+      } catch (e) { }
+      return [];
+    },
+    saveValuersList: async function (valuers, deletedIds = []) {
+      if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
+        await window.PostgresSync.syncGoldSettings('valuers', { list: valuers, deletedIds });
+      }
+      return valuers;
     },
     saveValuer: async function (v) {
-      try {
-        const list = await this.getValuersList();
-        list.push(v);
-        localStorage.setItem("tjccb_valuers_cache", JSON.stringify(list));
-      } catch (e) { }
+      const current = await this.getValuersList();
+      const list = Array.isArray(current) ? current : (current.list || []);
+      const idx = list.findIndex(item => item.id === v.id || item.name === v.name);
+      if (idx >= 0) list[idx] = v;
+      else list.push(v);
+      await this.saveValuersList(list);
       return v;
     },
     listenValuers: function (callback) {
@@ -268,16 +273,22 @@
     },
 
     getProductsList: async function () {
-      try {
-        return JSON.parse(localStorage.getItem("tjccb_products_cache") || "[]");
-      } catch (e) { return []; }
+      if (window.PostgresSync && window.PostgresSync.fetchGoldSettings) {
+        const prods = await window.PostgresSync.fetchGoldSettings('products');
+        if (Array.isArray(prods) && prods.length > 0) return prods;
+      }
+      return [];
+    },
+    saveProductsList: async function (products) {
+      if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
+        await window.PostgresSync.syncGoldSettings('products', products);
+      }
+      return products;
     },
     saveProduct: async function (p) {
-      try {
-        const list = await this.getProductsList();
-        list.push(p);
-        localStorage.setItem("tjccb_products_cache", JSON.stringify(list));
-      } catch (e) { }
+      const list = await this.getProductsList();
+      list.push(p);
+      await this.saveProductsList(list);
       return p;
     },
     listenProducts: function (callback) {
@@ -287,16 +298,31 @@
     },
 
     getCustomers: async function () {
+      if (window.PostgresSync && window.PostgresSync.fetchGoldSettings) {
+        const customers = await window.PostgresSync.fetchGoldSettings('customers');
+        if (Array.isArray(customers) && customers.length > 0) return customers;
+      }
       try {
-        return JSON.parse(localStorage.getItem("tjccb_customers_cache") || "[]");
-      } catch (e) { return []; }
+        const raw = localStorage.getItem("jccb_gold_system_state_v2");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return parsed.customers || [];
+        }
+      } catch (e) { }
+      return [];
+    },
+    saveCustomersList: async function (customers) {
+      if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
+        await window.PostgresSync.syncGoldSettings('customers', customers);
+      }
+      return customers;
     },
     saveCustomer: async function (c) {
-      try {
-        const list = await this.getCustomers();
-        list.push(c);
-        localStorage.setItem("tjccb_customers_cache", JSON.stringify(list));
-      } catch (e) { }
+      const list = await this.getCustomers();
+      const idx = list.findIndex(item => String(item.customerNo || item.id) === String(c.customerNo || c.id));
+      if (idx >= 0) list[idx] = c;
+      else list.push(c);
+      await this.saveCustomersList(list);
       return c;
     },
     listenCustomers: function (callback) {
@@ -309,21 +335,17 @@
     // 4. RULES & SETTINGS
     // ==========================================
     saveRules: async function (rules) {
-      localStorage.setItem("tjccb_rules_cache", JSON.stringify(rules));
-      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
-        try {
-          await window.PostgresSync.runNeonQuery(
-            "INSERT INTO jccb_gold_settings (key, payload, updated_at) VALUES ('rules', $1, NOW()) ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW();",
-            [JSON.stringify(rules)]
-          );
-        } catch (e) { }
+      if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
+        await window.PostgresSync.syncGoldSettings('rules', rules);
       }
       return rules;
     },
     getRules: async function () {
-      try {
-        return JSON.parse(localStorage.getItem("tjccb_rules_cache") || "{}");
-      } catch (e) { return {}; }
+      if (window.PostgresSync && window.PostgresSync.fetchGoldSettings) {
+        const rules = await window.PostgresSync.fetchGoldSettings('rules');
+        if (rules) return rules;
+      }
+      return {};
     },
     listenRules: function (callback) {
       if (typeof callback === "function") {
@@ -332,21 +354,17 @@
     },
 
     saveSettings: async function (settings) {
-      localStorage.setItem("tjccb_settings_cache", JSON.stringify(settings));
-      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
-        try {
-          await window.PostgresSync.runNeonQuery(
-            "INSERT INTO jccb_gold_settings (key, payload, updated_at) VALUES ('settings', $1, NOW()) ON CONFLICT (key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW();",
-            [JSON.stringify(settings)]
-          );
-        } catch (e) { }
+      if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
+        await window.PostgresSync.syncGoldSettings('settings', settings);
       }
       return settings;
     },
     getSettings: async function () {
-      try {
-        return JSON.parse(localStorage.getItem("tjccb_settings_cache") || "{}");
-      } catch (e) { return {}; }
+      if (window.PostgresSync && window.PostgresSync.fetchGoldSettings) {
+        const settings = await window.PostgresSync.fetchGoldSettings('settings');
+        if (settings) return settings;
+      }
+      return {};
     },
     listenSettings: function (callback) {
       if (typeof callback === "function") {
@@ -395,7 +413,7 @@
     deleteActiveSession: async function () {},
 
     // ==========================================
-    // 7. UTILITIES (IMAGE COMPRESSION & UPLOAD)
+    // 7. UTILITIES
     // ==========================================
     compressBase64Image: async function (base64, maxDim = 600, quality = 0.7) {
       return new Promise((resolve) => {
@@ -437,34 +455,25 @@
       });
     },
 
-    // Periodic live cloud fetch to ensure cross-device updates
+    // Background live cloud sync to ensure cross-device updates
     startBackgroundSync: function () {
       if (this.pollingInterval) clearInterval(this.pollingInterval);
       this.pollingInterval = setInterval(async () => {
         try {
           if (window.PostgresSync && window.PostgresSync.isConnected && window.PostgresSync.isConnected()) {
             const cloudLoans = await this.getLoans();
-            if (cloudLoans && cloudLoans.length) {
-              const cache = JSON.parse(localStorage.getItem("tjccb_gold_loans_cache") || "{}");
-              let changed = false;
-              cloudLoans.forEach(l => {
-                if (l && l.id && !cache[l.id]) {
-                  cache[l.id] = l;
-                  changed = true;
-                }
-              });
-              if (changed) {
-                localStorage.setItem("tjccb_gold_loans_cache", JSON.stringify(cache));
-                if (window.renderLoansTable) window.renderLoansTable();
+            if (Array.isArray(cloudLoans) && cloudLoans.length > 0) {
+              if (typeof window.syncCloudData === "function") {
+                window.syncCloudData(false);
               }
             }
           }
         } catch (e) { }
-      }, 20000);
+      }, 10000);
     }
   };
 
-  // Expose as both NeonGoldService and legacy FirebaseService
+  // Expose as both NeonGoldService and legacy FirebaseService for backwards compatibility
   window.NeonGoldService = NeonGoldService;
   window.FirebaseService = NeonGoldService;
 })();

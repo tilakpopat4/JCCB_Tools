@@ -19,7 +19,7 @@ const PostgresSync = (function () {
     const saved = localStorage.getItem(CONFIG_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Auto-migrate if stale rotated password exists
+      // Auto-migrate if stale connection exists
       if (parsed.neonConnString && !parsed.neonConnString.includes("npg_84BeauzJCGtj")) {
         config = { ...config, ...parsed };
       } else {
@@ -55,43 +55,21 @@ const PostgresSync = (function () {
     return null;
   }
 
-  // Neon HTTP Query Runner (via local CORS-free proxy or direct endpoint)
+  // Neon HTTP Query Runner (Direct CORS-ready endpoint with proxy fallback)
   async function runNeonQuery(sql, params = [], customConnStr = null) {
-    const connStr = (customConnStr || config.neonConnString || "").trim();
+    const connStr = (customConnStr || config.neonConnString || DEFAULT_NEON_CONN).trim();
     if (!connStr) {
-      throw new Error("No Neon connection string configured. Please enter your connection string in the Cloud DB modal.");
+      throw new Error("No Neon connection string configured.");
     }
 
     const parsed = parseNeonConnString(connStr);
     if (!parsed) {
-      throw new Error("Invalid connection string format. Example: postgresql://user:password@ep-xyz.aws.neon.tech/neondb?sslmode=require");
+      throw new Error("Invalid Neon connection string format.");
     }
 
-    // 1. Try via server proxy endpoint (/api/sql)
-    try {
-      const proxyResp = await fetch("/api/sql", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Neon-Connection-String": connStr
-        },
-        body: JSON.stringify({ query: sql, params, connString: connStr })
-      });
+    let directError = null;
 
-      const proxyData = await proxyResp.json().catch(() => null);
-      if (!proxyResp.ok) {
-        const errMsg = (proxyData && (proxyData.message || proxyData.error)) || `Proxy error (${proxyResp.status})`;
-        throw new Error(errMsg);
-      }
-      return proxyData;
-    } catch (proxyErr) {
-      // If error came from actual Neon rejection (e.g. wrong password), throw immediately so user sees the real cause
-      if (proxyErr && proxyErr.message && !proxyErr.message.toLowerCase().includes("failed to fetch")) {
-        throw proxyErr;
-      }
-    }
-
-    // 2. Direct endpoint fetch
+    // 1. Direct Neon HTTP SQL Endpoint (CORS-enabled from all origins)
     try {
       const resp = await fetch(parsed.httpEndpoint, {
         method: "POST",
@@ -99,18 +77,46 @@ const PostgresSync = (function () {
           "Content-Type": "application/json",
           "Neon-Connection-String": connStr
         },
-        body: JSON.stringify({ query: sql, params })
+        body: JSON.stringify({ query: sql, params: params || [] })
       });
 
       const respData = await resp.json().catch(() => null);
-      if (!resp.ok) {
-        const errText = (respData && (respData.message || respData.error)) || `HTTP Error (${resp.status})`;
-        throw new Error(errText);
+      if (resp.ok && respData && (respData.rows !== undefined || respData.command !== undefined)) {
+        return respData;
       }
-      return respData;
-    } catch (directErr) {
-      throw directErr;
+      if (!resp.ok) {
+        directError = new Error((respData && (respData.message || respData.error)) || `HTTP Error ${resp.status}`);
+      }
+    } catch (err) {
+      directError = err;
     }
+
+    // 2. Fallback to Local Node / Serverless Proxy (/api/sql)
+    try {
+      const proxyResp = await fetch("/api/sql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Neon-Connection-String": connStr
+        },
+        body: JSON.stringify({ query: sql, params: params || [], connString: connStr })
+      });
+
+      if (proxyResp.ok) {
+        const proxyData = await proxyResp.json().catch(() => null);
+        if (proxyData && (proxyData.rows !== undefined || proxyData.command !== undefined)) {
+          return proxyData;
+        }
+      }
+    } catch (proxyErr) {
+      // Proxy unavailable
+    }
+
+    if (directError) {
+      throw directError;
+    }
+
+    throw new Error("Database query failed: Could not reach Neon PostgreSQL endpoint.");
   }
 
   // Initialize DB Client & Verify Live Connection
@@ -120,12 +126,12 @@ const PostgresSync = (function () {
         const testRes = await runNeonQuery("SELECT 1 as live_status;");
         if (testRes && testRes.rows && testRes.rows.length) {
           isConnected = true;
-          console.log("⚡ [PostgresSync] Connected to Neon PostgreSQL (Singapore)");
+          console.log("⚡ [PostgresSync] Connected to Neon PostgreSQL (Singapore / ap-southeast-1)");
         } else {
           isConnected = false;
         }
       } catch (err) {
-        console.warn("[PostgresSync] Neon connection check failed, trying auto table creation...", err);
+        console.warn("[PostgresSync] Direct connection check failed, verifying table setup...", err);
         try {
           await initNeonTables();
           isConnected = true;
@@ -142,7 +148,7 @@ const PostgresSync = (function () {
     return isConnected;
   }
 
-  // Initialize Tables on Neon sequentially
+  // Initialize Tables on Neon sequentially if not exist
   async function initNeonTables(customConnStr = null) {
     const stmts = [
       `CREATE TABLE IF NOT EXISTS jccb_gold_loans (
@@ -180,6 +186,48 @@ const PostgresSync = (function () {
         payload JSONB NOT NULL,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );`,
+      `CREATE TABLE IF NOT EXISTS jccb_gold_rates (
+        id TEXT PRIMARY KEY,
+        date_str TEXT NOT NULL,
+        rate NUMERIC NOT NULL,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `CREATE TABLE IF NOT EXISTS jccb_gold_branches (
+        code TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `CREATE TABLE IF NOT EXISTS jccb_gold_valuers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `CREATE TABLE IF NOT EXISTS jccb_gold_customers (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        phone TEXT,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `CREATE TABLE IF NOT EXISTS jccb_gold_settings (
+        key TEXT PRIMARY KEY,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `CREATE TABLE IF NOT EXISTS jccb_gold_sessions (
+        id TEXT PRIMARY KEY,
+        branch_code TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
+      `CREATE TABLE IF NOT EXISTS jccb_deleted_records (
+        id TEXT PRIMARY KEY,
+        module TEXT NOT NULL,
+        deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );`,
       `CREATE TABLE IF NOT EXISTS jccb_branch_activity (
         id TEXT PRIMARY KEY,
         branch_code TEXT NOT NULL,
@@ -190,55 +238,68 @@ const PostgresSync = (function () {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );`,
       `CREATE INDEX IF NOT EXISTS idx_gold_branch ON jccb_gold_loans(branch_code);`,
+      `CREATE INDEX IF NOT EXISTS idx_gold_loan_no ON jccb_gold_loans(loan_no);`,
       `CREATE INDEX IF NOT EXISTS idx_fd_branch ON jccb_fd_forms(branch_code);`,
-      `CREATE INDEX IF NOT EXISTS idx_od_branch ON jccb_od_loans(branch_code);`
+      `CREATE INDEX IF NOT EXISTS idx_fd_form_no ON jccb_fd_forms(form_no);`,
+      `CREATE INDEX IF NOT EXISTS idx_od_branch ON jccb_od_loans(branch_code);`,
+      `CREATE INDEX IF NOT EXISTS idx_od_acc_no ON jccb_od_loans(account_no);`,
+      `CREATE INDEX IF NOT EXISTS idx_activity_created ON jccb_branch_activity(created_at DESC);`
     ];
 
     for (const s of stmts) {
-      await runNeonQuery(s, [], customConnStr);
+      try {
+        await runNeonQuery(s, [], customConnStr);
+      } catch (e) {
+        console.warn("[PostgresSync] Table init stmt error:", e);
+      }
     }
   }
 
   function notifyStatus() {
-    listeners.forEach(fn => fn({ isConnected, config }));
+    listeners.forEach(fn => {
+      try { fn({ isConnected, config }); } catch(e){}
+    });
     updateUIBadge();
   }
 
   function onStatusChange(fn) {
     listeners.push(fn);
-    fn({ isConnected, config });
+    try { fn({ isConnected, config }); } catch(e){}
   }
 
   function updateUIBadge() {
-    const badge = document.getElementById("postgres-status-badge");
-    if (!badge) return;
-
-    if (!config.neonConnString) {
-      badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 flex items-center gap-1.5 cursor-pointer hover:bg-amber-100 transition shadow-sm";
-      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> <span>Cloud DB: Offline Local</span>`;
-    } else if (isConnected) {
-      badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100 transition shadow-sm";
-      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> <span>Neon Postgres: Live</span>`;
-    } else {
-      badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-300 flex items-center gap-1.5 cursor-pointer hover:bg-rose-100 transition shadow-sm";
-      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> <span>Neon DB: Connect...</span>`;
-    }
+    const badges = document.querySelectorAll("#postgres-status-badge, .postgres-status-badge");
+    badges.forEach(badge => {
+      if (!config.neonConnString) {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 flex items-center gap-1.5 cursor-pointer hover:bg-amber-100 transition shadow-sm";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> <span>Cloud DB: Offline Local</span>`;
+      } else if (isConnected) {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100 transition shadow-sm";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> <span>Neon Postgres: Live</span>`;
+      } else {
+        badge.className = "px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-300 flex items-center gap-1.5 cursor-pointer hover:bg-rose-100 transition shadow-sm";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> <span>Neon DB: Connect...</span>`;
+      }
+    });
   }
 
-  // Dual-Write: Save Gold Loan
+  // ==========================================
+  // 1. GOLD MODULE DUAL-WRITE & SYNC
+  // ==========================================
   async function syncGoldLoan(loan) {
-    if (!isConnected) return false;
     try {
-      const id = String(loan.id || loan.loanNo || Date.now());
+      const id = String(loan.id || loan.loanNo || loan.proposalNo || Date.now()).trim();
       let bCode = String(loan.branchCode || loan.branchId || (loan.branchName ? loan.branchName.replace(/\D/g, '') : '') || "99").trim();
       if (bCode.length === 1) bCode = '0' + bCode;
       const branchCode = bCode || "99";
-      const loanNo = String(loan.loanNo || loan.id || "");
-      const customerName = loan.customerName || loan.borrowerName || "";
-      const phone = loan.phone || loan.mobile || "";
-      const sanctionAmount = Number(loan.sanctionAmount || loan.loanAmount || 0);
-      const sanctionDate = loan.sanctionDate || loan.date || new Date().toISOString().split("T")[0];
-      const status = loan.status || "ACTIVE";
+      const loanNo = String(loan.loanNo || loan.proposalNo || loan.id || "");
+      const customerName = String(loan.customerName || loan.borrowerName || "").toUpperCase();
+      const phone = String(loan.phone || loan.mobile || "");
+      const sanctionAmount = Number(loan.sanctionAmount || loan.loanAmount || loan.sanctionedAmount || 0);
+      const sanctionDate = String(loan.sanctionDate || loan.date || new Date().toISOString().split("T")[0]);
+      const status = String(loan.status || loan.loanStatus || "ACTIVE").toUpperCase();
+
+      const payload = { ...loan, id, updatedAt: loan.updatedAt || new Date().toISOString() };
 
       const sql = `
         INSERT INTO jccb_gold_loans (id, branch_code, loan_no, customer_name, phone, sanction_amount, sanction_date, status, payload, updated_at)
@@ -249,11 +310,12 @@ const PostgresSync = (function () {
           customer_name = EXCLUDED.customer_name,
           phone = EXCLUDED.phone,
           sanction_amount = EXCLUDED.sanction_amount,
+          sanction_date = EXCLUDED.sanction_date,
           status = EXCLUDED.status,
           payload = EXCLUDED.payload,
           updated_at = NOW();
       `;
-      await runNeonQuery(sql, [id, branchCode, loanNo, customerName, phone, sanctionAmount, sanctionDate, status, JSON.stringify(loan)]);
+      await runNeonQuery(sql, [id, branchCode, loanNo, customerName, phone, sanctionAmount, sanctionDate, status, JSON.stringify(payload)]);
       return true;
     } catch (e) {
       console.warn("[PostgresSync] Gold sync error:", e);
@@ -261,20 +323,120 @@ const PostgresSync = (function () {
     }
   }
 
-  // Dual-Write: Save FD Form
-  async function syncFDForm(form) {
-    if (!isConnected) return false;
+  async function deleteGoldLoan(loanId) {
     try {
-      const id = String(form.formNo || form.id || Date.now());
+      const id = String(loanId).trim();
+      await runNeonQuery("DELETE FROM jccb_gold_loans WHERE id = $1;", [id]);
+      await runNeonQuery(
+        "INSERT INTO jccb_deleted_records (id, module, deleted_at) VALUES ($1, 'gold', NOW()) ON CONFLICT (id) DO UPDATE SET deleted_at = NOW();",
+        [id]
+      );
+      return true;
+    } catch (e) {
+      console.warn("[PostgresSync] Delete gold loan error:", e);
+      return false;
+    }
+  }
+
+  async function fetchGoldLoans(branchCode = null) {
+    try {
+      const isHO = !branchCode || branchCode === "99" || branchCode === "ALL" || branchCode === "ho";
+      let sql, params;
+      if (isHO) {
+        sql = "SELECT payload FROM jccb_gold_loans ORDER BY updated_at DESC;";
+        params = [];
+      } else {
+        let bCode = String(branchCode).replace(/\D/g, '').padStart(2, '0');
+        sql = "SELECT payload FROM jccb_gold_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
+        params = [bCode];
+      }
+      const res = await runNeonQuery(sql, params);
+      return (res && res.rows) ? res.rows.map(r => r.payload || r) : [];
+    } catch (e) {
+      console.warn("[PostgresSync] Fetch gold loans error:", e);
+      return [];
+    }
+  }
+
+  async function syncGoldRate(dateStr, rateVal) {
+    try {
+      const payload = {
+        date: dateStr,
+        rate22K: Number(rateVal),
+        rate24K: Math.round(Number(rateVal) * (24 / 22)),
+        updatedAt: new Date().toISOString()
+      };
+      const sql = `
+        INSERT INTO jccb_gold_rates (id, date_str, rate, payload, updated_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          date_str = EXCLUDED.date_str,
+          rate = EXCLUDED.rate,
+          payload = EXCLUDED.payload,
+          updated_at = NOW();
+      `;
+      await runNeonQuery(sql, [dateStr, dateStr, Number(rateVal), JSON.stringify(payload)]);
+      return true;
+    } catch (e) {
+      console.warn("[PostgresSync] Save gold rate error:", e);
+      return false;
+    }
+  }
+
+  async function fetchGoldRates() {
+    try {
+      const res = await runNeonQuery("SELECT payload FROM jccb_gold_rates ORDER BY date_str DESC;");
+      return (res && res.rows) ? res.rows.map(r => r.payload || r) : [];
+    } catch (e) {
+      console.warn("[PostgresSync] Fetch gold rates error:", e);
+      return [];
+    }
+  }
+
+  async function syncGoldSettings(key, payloadObj) {
+    try {
+      const sql = `
+        INSERT INTO jccb_gold_settings (key, payload, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (key) DO UPDATE SET
+          payload = EXCLUDED.payload,
+          updated_at = NOW();
+      `;
+      await runNeonQuery(sql, [key, JSON.stringify(payloadObj)]);
+      return true;
+    } catch (e) {
+      console.warn(`[PostgresSync] Sync settings (${key}) error:`, e);
+      return false;
+    }
+  }
+
+  async function fetchGoldSettings(key) {
+    try {
+      const res = await runNeonQuery("SELECT payload FROM jccb_gold_settings WHERE key = $1;", [key]);
+      return (res && res.rows && res.rows[0]) ? res.rows[0].payload : null;
+    } catch (e) {
+      console.warn(`[PostgresSync] Fetch settings (${key}) error:`, e);
+      return null;
+    }
+  }
+
+  // ==========================================
+  // 2. FD MODULE DUAL-WRITE & SYNC
+  // ==========================================
+  async function syncFDForm(form) {
+    try {
+      const id = String(form.formNo || form.id || Date.now()).trim();
       let bCode = String(form.branchCode || (form.data && form.data.branchCode) || form.branchId || (form.branch ? form.branch.replace(/\D/g, '') : '') || "99").trim();
       if (bCode.length === 1) bCode = '0' + bCode;
       const branchCode = bCode || "99";
       const formNo = String(form.formNo || form.id || "");
-      const customerName = form.customerName || form.applicantName || (form.data && form.data.cust1Name) || "";
+      const customerName = String(form.customerName || form.applicantName || (form.data && form.data.cust1Name) || "").toUpperCase();
       const depositAmount = Number(form.depositAmount || form.amount || (form.data && form.data.deposit1Amount) || 0);
       const interestRate = Number(form.interestRate || form.roi || form.rate || (form.data && form.data.deposit1Roi) || 0);
       const tenureMonths = Number(form.tenureMonths || form.months || 12);
-      const status = form.status || "COMPLETED";
+      const status = String(form.status || "COMPLETED").toUpperCase();
+
+      const payload = { ...form, id, updatedAt: form.updatedAt || new Date().toISOString() };
 
       const sql = `
         INSERT INTO jccb_fd_forms (id, branch_code, form_no, customer_name, deposit_amount, interest_rate, tenure_months, status, payload, updated_at)
@@ -289,7 +451,7 @@ const PostgresSync = (function () {
           payload = EXCLUDED.payload,
           updated_at = NOW();
       `;
-      await runNeonQuery(sql, [id, branchCode, formNo, customerName, depositAmount, interestRate, tenureMonths, status, JSON.stringify(form)]);
+      await runNeonQuery(sql, [id, branchCode, formNo, customerName, depositAmount, interestRate, tenureMonths, status, JSON.stringify(payload)]);
       return true;
     } catch (e) {
       console.warn("[PostgresSync] FD sync error:", e);
@@ -297,19 +459,57 @@ const PostgresSync = (function () {
     }
   }
 
-  // Dual-Write: Save OD Loan
-  async function syncODLoan(od) {
-    if (!isConnected) return false;
+  async function deleteFDForm(formId) {
     try {
-      const id = String(od.accountNo || od.id || Date.now());
+      const id = String(formId).trim();
+      await runNeonQuery("DELETE FROM jccb_fd_forms WHERE id = $1;", [id]);
+      await runNeonQuery(
+        "INSERT INTO jccb_deleted_records (id, module, deleted_at) VALUES ($1, 'fd', NOW()) ON CONFLICT (id) DO UPDATE SET deleted_at = NOW();",
+        [id]
+      );
+      return true;
+    } catch (e) {
+      console.warn("[PostgresSync] Delete FD form error:", e);
+      return false;
+    }
+  }
+
+  async function fetchFDForms(branchCode = null) {
+    try {
+      const isHO = !branchCode || branchCode === "99" || branchCode === "ALL" || branchCode === "ho";
+      let sql, params;
+      if (isHO) {
+        sql = "SELECT payload FROM jccb_fd_forms ORDER BY updated_at DESC;";
+        params = [];
+      } else {
+        let bCode = String(branchCode).replace(/\D/g, '').padStart(2, '0');
+        sql = "SELECT payload FROM jccb_fd_forms WHERE branch_code = $1 ORDER BY updated_at DESC;";
+        params = [bCode];
+      }
+      const res = await runNeonQuery(sql, params);
+      return (res && res.rows) ? res.rows.map(r => r.payload || r) : [];
+    } catch (e) {
+      console.warn("[PostgresSync] Fetch FD forms error:", e);
+      return [];
+    }
+  }
+
+  // ==========================================
+  // 3. OD MODULE DUAL-WRITE & SYNC
+  // ==========================================
+  async function syncODLoan(od) {
+    try {
+      const id = String(od.accountNo || od.id || Date.now()).trim();
       let bCode = String(od.branchCode || od.branchId || (od.branchName ? od.branchName.replace(/\D/g, '') : '') || "99").trim();
       if (bCode.length === 1) bCode = '0' + bCode;
       const branchCode = bCode || "99";
       const accountNo = String(od.accountNo || od.id || od.savingAccNo || "");
-      const customerName = od.customerName || (od.applicant1 && od.applicant1.name) || od.borrowerName || "";
+      const customerName = String(od.customerName || (od.applicant1 && od.applicant1.name) || od.borrowerName || "").toUpperCase();
       const limitAmount = Number(od.limitAmount || od.loanAmount || od.sanctionAmount || 0);
       const fdReceiptNo = String(od.fdReceiptNo || (od.fdReceipts && od.fdReceipts[0] ? od.fdReceipts[0].certNo : "") || "");
-      const status = od.status || "SANCTIONED";
+      const status = String(od.status || "SANCTIONED").toUpperCase();
+
+      const payload = { ...od, id, updatedAt: od.updatedAt || new Date().toISOString() };
 
       const sql = `
         INSERT INTO jccb_od_loans (id, branch_code, account_no, customer_name, limit_amount, fd_receipt_no, status, payload, updated_at)
@@ -323,7 +523,7 @@ const PostgresSync = (function () {
           payload = EXCLUDED.payload,
           updated_at = NOW();
       `;
-      await runNeonQuery(sql, [id, branchCode, accountNo, customerName, limitAmount, fdReceiptNo, status, JSON.stringify(od)]);
+      await runNeonQuery(sql, [id, branchCode, accountNo, customerName, limitAmount, fdReceiptNo, status, JSON.stringify(payload)]);
       return true;
     } catch (e) {
       console.warn("[PostgresSync] OD sync error:", e);
@@ -331,50 +531,96 @@ const PostgresSync = (function () {
     }
   }
 
-  // Fetch Module Records with Branch Role Filter
-  async function fetchModuleRecords(tableName, branchCode = null) {
-    if (!isConnected) return [];
+  async function deleteODLoan(odId) {
+    try {
+      const id = String(odId).trim();
+      await runNeonQuery("DELETE FROM jccb_od_loans WHERE id = $1;", [id]);
+      await runNeonQuery(
+        "INSERT INTO jccb_deleted_records (id, module, deleted_at) VALUES ($1, 'od', NOW()) ON CONFLICT (id) DO UPDATE SET deleted_at = NOW();",
+        [id]
+      );
+      return true;
+    } catch (e) {
+      console.warn("[PostgresSync] Delete OD loan error:", e);
+      return false;
+    }
+  }
+
+  async function fetchODLoans(branchCode = null) {
     try {
       const isHO = !branchCode || branchCode === "99" || branchCode === "ALL" || branchCode === "ho";
       let sql, params;
       if (isHO) {
-        sql = `SELECT payload FROM ${tableName} ORDER BY updated_at DESC;`;
+        sql = "SELECT payload FROM jccb_od_loans ORDER BY updated_at DESC;";
         params = [];
       } else {
         let bCode = String(branchCode).replace(/\D/g, '').padStart(2, '0');
-        sql = `SELECT payload FROM ${tableName} WHERE branch_code = $1 ORDER BY updated_at DESC;`;
+        sql = "SELECT payload FROM jccb_od_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
         params = [bCode];
       }
       const res = await runNeonQuery(sql, params);
       return (res && res.rows) ? res.rows.map(r => r.payload || r) : [];
     } catch (e) {
-      console.error(`[PostgresSync] fetchModuleRecords (${tableName}) error:`, e);
+      console.warn("[PostgresSync] Fetch OD loans error:", e);
       return [];
     }
   }
 
-  // Fetch All Head Office Data
-  async function fetchAllHeadOfficeData() {
-    if (!isConnected) return null;
+  // ==========================================
+  // 4. DELETED RECORDS & AUDIT ACTIVITY
+  // ==========================================
+  async function fetchDeletedRecordIds(moduleName) {
     try {
-      const [goldData, fdData, odData] = await Promise.all([
-        runNeonQuery("SELECT payload FROM jccb_gold_loans ORDER BY updated_at DESC;"),
-        runNeonQuery("SELECT id, payload FROM jccb_fd_forms ORDER BY updated_at DESC;"),
-        runNeonQuery("SELECT id, payload FROM jccb_od_loans ORDER BY updated_at DESC;")
+      const res = await runNeonQuery("SELECT id FROM jccb_deleted_records WHERE module = $1;", [moduleName]);
+      return (res && res.rows) ? res.rows.map(r => r.id) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async function logActivity(branchCode, module, action, recordId, summary) {
+    try {
+      const id = `ACT_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+      const sql = `
+        INSERT INTO jccb_branch_activity (id, branch_code, module, action, record_id, summary, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW());
+      `;
+      await runNeonQuery(sql, [id, String(branchCode || "99"), String(module || "SYSTEM"), String(action || "INFO"), String(recordId || ""), String(summary || "")]);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Fetch All Head Office Data across 3 portals
+  async function fetchAllHeadOfficeData() {
+    try {
+      const [goldRes, fdRes, odRes] = await Promise.all([
+        runNeonQuery("SELECT payload FROM jccb_gold_loans ORDER BY updated_at DESC;").catch(() => ({ rows: [] })),
+        runNeonQuery("SELECT id, payload FROM jccb_fd_forms ORDER BY updated_at DESC;").catch(() => ({ rows: [] })),
+        runNeonQuery("SELECT id, payload FROM jccb_od_loans ORDER BY updated_at DESC;").catch(() => ({ rows: [] }))
       ]);
 
-      return {
-        goldLoans: (goldData.rows || []).map(r => r.payload),
-        fdForms: (fdData.rows || []).reduce((acc, r) => { acc[r.id] = r.payload; return acc; }, {}),
-        odLoans: (odData.rows || []).reduce((acc, r) => { acc[r.id] = r.payload; return acc; }, {})
-      };
+      const goldLoans = (goldRes.rows || []).map(r => r.payload || r);
+      const fdForms = (fdRes.rows || []).reduce((acc, r) => {
+        const item = r.payload || r;
+        if (item && item.id) acc[item.id] = item;
+        return acc;
+      }, {});
+      const odLoans = (odRes.rows || []).reduce((acc, r) => {
+        const item = r.payload || r;
+        if (item && item.id) acc[item.id] = item;
+        return acc;
+      }, {});
+
+      return { goldLoans, fdForms, odLoans };
     } catch (e) {
       console.error("[PostgresSync] fetchAllHeadOfficeData error:", e);
       return null;
     }
   }
 
-  // Show Config Modal
+  // UI Config Modal
   function showConfigModal() {
     let modal = document.getElementById("postgres-config-modal");
     if (!modal) {
@@ -390,8 +636,8 @@ const PostgresSync = (function () {
           <div class="flex items-center gap-3">
             <span class="text-2xl">⚡</span>
             <div>
-              <h3 class="font-bold text-lg">Neon Serverless PostgreSQL Database</h3>
-              <p class="text-xs text-blue-200">Live Multi-Branch Cloud Sync</p>
+              <h3 class="font-bold text-lg">Neon Serverless PostgreSQL Cloud DB</h3>
+              <p class="text-xs text-blue-200">Live Multi-Branch & Cross-Device Cloud Sync</p>
             </div>
           </div>
           <button onclick="PostgresSync.hideConfigModal()" class="text-white/80 hover:text-white text-xl font-bold">&times;</button>
@@ -401,17 +647,17 @@ const PostgresSync = (function () {
           <div>
             <label class="block font-bold text-slate-800 mb-1">Neon Database Connection String</label>
             <textarea id="pg-cfg-neon-conn" rows="3" placeholder="postgresql://neondb_owner:password@ep-xyz.aws.neon.tech/neondb?sslmode=require" 
-              class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-xs">${config.neonConnString || ''}</textarea>
-            <p class="text-[11px] text-slate-500 mt-1">Paste your freshly rotated connection string from your Neon Project Dashboard.</p>
+              class="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-xs">${config.neonConnString || DEFAULT_NEON_CONN}</textarea>
+            <p class="text-[11px] text-slate-500 mt-1">Direct Serverless Endpoint: Singapore (ap-southeast-1)</p>
           </div>
 
           <div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-xs space-y-1.5">
             <p class="font-semibold text-slate-800 flex items-center gap-1.5">
               <span>🛡️</span> Multi-Layer Security & Fail-Safe:
             </p>
-            <p>• <b>Live Cloud Sync</b>: All branch records are mirrored to Neon PostgreSQL in real-time.</p>
-            <p>• <b>Dual-Write Protection</b>: Local computer storage always stores primary records offline.</p>
-            <p>• <b>Excel Snapshot Export</b>: 1-Click master backup (.xlsx) available anytime.</p>
+            <p>• <b>Live Cloud Sync</b>: All branch records sync to Neon PostgreSQL in real time.</p>
+            <p>• <b>Cross-Device Instant Access</b>: Open any portal on any computer or phone to see live entries.</p>
+            <p>• <b>Dual-Write Protection</b>: Local storage preserves offline copies automatically.</p>
           </div>
 
           <div id="pg-cfg-test-status" class="hidden p-3 rounded-lg text-xs font-semibold"></div>
@@ -459,10 +705,9 @@ const PostgresSync = (function () {
 
     try {
       const testRes = await runNeonQuery("SELECT 1 as live_status;", [], connStr);
-
       if (testRes && testRes.rows && testRes.rows.length) {
         statusDiv.className = "p-3 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800";
-        statusDiv.innerHTML = "✅ Connection successful! Neon PostgreSQL is live & ready.";
+        statusDiv.innerHTML = "✅ Connection successful! Neon PostgreSQL is live & synchronized.";
       } else {
         throw new Error("Invalid response from database");
       }
@@ -474,21 +719,20 @@ const PostgresSync = (function () {
 
   function saveSettings() {
     const connStr = (document.getElementById("pg-cfg-neon-conn").value || "").trim();
-
     config.provider = "neon";
-    config.neonConnString = connStr;
+    config.neonConnString = connStr || DEFAULT_NEON_CONN;
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-
     hideConfigModal();
     init();
-    alert("Neon PostgreSQL settings saved & connected!");
   }
 
   // Auto initialize on load
   if (typeof window !== "undefined") {
-    window.addEventListener("DOMContentLoaded", () => {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => init());
+    } else {
       init();
-    });
+    }
   }
 
   return {
@@ -497,9 +741,20 @@ const PostgresSync = (function () {
     isConnected: () => isConnected,
     onStatusChange,
     syncGoldLoan,
+    deleteGoldLoan,
+    fetchGoldLoans,
+    syncGoldRate,
+    fetchGoldRates,
+    syncGoldSettings,
+    fetchGoldSettings,
     syncFDForm,
+    deleteFDForm,
+    fetchFDForms,
     syncODLoan,
-    fetchModuleRecords,
+    deleteODLoan,
+    fetchODLoans,
+    fetchDeletedRecordIds,
+    logActivity,
     fetchAllHeadOfficeData,
     showConfigModal,
     hideConfigModal,

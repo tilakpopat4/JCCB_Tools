@@ -143,33 +143,69 @@ const FDApp = {
 
   async startNeonDeviceSync() {
     const pullCloudFD = async () => {
-      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+      if (window.PostgresSync && window.PostgresSync.fetchFDForms) {
         try {
-          const res = await window.PostgresSync.runNeonQuery("SELECT payload FROM jccb_fd_forms ORDER BY updated_at DESC;");
-          if (res && res.rows && res.rows.length) {
-            let savedList = {};
-            try {
-              savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
-            } catch(e) {}
-            let changed = false;
-            res.rows.forEach(r => {
-              const item = r.payload || r;
-              if (item && item.id && !savedList[item.id]) {
-                savedList[item.id] = item;
-                changed = true;
+          const [cloudForms, deletedIds] = await Promise.all([
+            window.PostgresSync.fetchFDForms().catch(() => []),
+            (window.PostgresSync.fetchDeletedRecordIds ? window.PostgresSync.fetchDeletedRecordIds('fd') : Promise.resolve([])).catch(() => [])
+          ]);
+
+          let savedList = {};
+          try {
+            savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
+          } catch (e) { }
+
+          const deletedSet = new Set(deletedIds || []);
+          let changed = false;
+
+          // 1. Remove locally any record deleted in cloud
+          deletedSet.forEach(delId => {
+            if (savedList[delId]) {
+              delete savedList[delId];
+              changed = true;
+            }
+          });
+
+          // 2. Merge cloud forms (non-destructive smart update)
+          if (Array.isArray(cloudForms)) {
+            cloudForms.forEach(item => {
+              if (item && item.id && !deletedSet.has(String(item.id))) {
+                const local = savedList[item.id];
+                if (!local) {
+                  savedList[item.id] = item;
+                  changed = true;
+                } else if (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt))) {
+                  savedList[item.id] = { ...local, ...item };
+                  changed = true;
+                }
               }
             });
-            if (changed) {
-              localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
-              this.updateRegisterBadgeCount();
+
+            // 3. Dual-write any local forms missing in cloud
+            Object.values(savedList).forEach(localForm => {
+              if (localForm && localForm.id && !deletedSet.has(String(localForm.id))) {
+                const inCloud = cloudForms.some(cf => String(cf.id) === String(localForm.id));
+                if (!inCloud && window.PostgresSync.syncFDForm) {
+                  window.PostgresSync.syncFDForm(localForm).catch(() => { });
+                }
+              }
+            });
+          }
+
+          if (changed) {
+            localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
+            this.updateRegisterBadgeCount();
+            if (typeof this.renderRegisterTable === 'function') {
               this.renderRegisterTable();
             }
           }
-        } catch(e) {}
+        } catch (e) {
+          console.warn("[FD Sync] Cloud pull notice:", e);
+        }
       }
     };
     pullCloudFD();
-    setInterval(pullCloudFD, 20000);
+    setInterval(pullCloudFD, 10000);
   },
 
   setupSessionAndBranchLock() {
@@ -1814,6 +1850,9 @@ const FDApp = {
     let savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
     delete savedList[id];
     localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
+    if (window.PostgresSync && window.PostgresSync.deleteFDForm) {
+      window.PostgresSync.deleteFDForm(id).catch(() => {});
+    }
     this.renderRegisterTable();
     this.updateRegisterBadgeCount();
   },

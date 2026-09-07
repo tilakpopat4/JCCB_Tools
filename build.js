@@ -13,6 +13,7 @@ const items = [
   'postgres-sync.js',
   'schema.sql',
   'jccb-logo.png',
+  'MASTER_CONTEXT_DOCUMENTATION.md',
   'gold-jccb-final-main',
   'fd-module',
   'od-module'

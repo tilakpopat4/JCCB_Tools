@@ -35,7 +35,7 @@ const CentralBackup = (function () {
     });
   }
 
-  // Load Gold State (IndexedDB + LocalStorage fallback)
+  // Load Gold State (IndexedDB + LocalStorage fallback + Neon Cloud)
   async function getGoldState() {
     let localData = null;
     try {
@@ -56,16 +56,36 @@ const CentralBackup = (function () {
       });
 
       if (idbData && typeof idbData === "object") {
-        return { ...(localData || {}), ...idbData };
+        localData = { ...(localData || {}), ...idbData };
       }
     } catch (err) {
       console.warn("Gold IndexedDB read error:", err);
     }
 
-    return localData || { loans: [], customers: [], valuers: [], rules: {}, goldRates: {} };
+    const stateObj = localData || { loans: [], customers: [], valuers: [], rules: {}, goldRates: {} };
+
+    // Merge with Neon Cloud if available
+    if (window.PostgresSync && window.PostgresSync.fetchGoldLoans) {
+      try {
+        const cloudLoans = await window.PostgresSync.fetchGoldLoans();
+        if (Array.isArray(cloudLoans) && cloudLoans.length > 0) {
+          const loanMap = new Map();
+          (stateObj.loans || []).forEach(l => { if (l && l.id) loanMap.set(l.id, l); });
+          cloudLoans.forEach(cl => {
+            if (cl && cl.id) {
+              const existing = loanMap.get(cl.id);
+              loanMap.set(cl.id, existing ? { ...existing, ...cl } : cl);
+            }
+          });
+          stateObj.loans = Array.from(loanMap.values());
+        }
+      } catch (e) { }
+    }
+
+    return stateObj;
   }
 
-  // Save Gold State (IndexedDB + LocalStorage)
+  // Save Gold State (IndexedDB + LocalStorage + Neon Cloud)
   async function saveGoldState(stateData) {
     try {
       // 1. IndexedDB
@@ -97,9 +117,16 @@ const CentralBackup = (function () {
         console.warn("Gold light storage also full:", inner);
       }
     }
+
+    // 3. Dual-write loans to Neon PostgreSQL
+    if (window.PostgresSync && window.PostgresSync.syncGoldLoan && Array.isArray(stateData.loans)) {
+      stateData.loans.forEach(loan => {
+        window.PostgresSync.syncGoldLoan(loan).catch(() => {});
+      });
+    }
   }
 
-  // Load FD Data
+  // Load FD Data (LocalStorage + Neon Cloud)
   function getFDForms() {
     try {
       const raw = localStorage.getItem(FD_FORMS_KEY);
@@ -120,6 +147,11 @@ const CentralBackup = (function () {
 
   function saveFDForms(formsObj) {
     localStorage.setItem(FD_FORMS_KEY, JSON.stringify(formsObj || {}));
+    if (window.PostgresSync && window.PostgresSync.syncFDForm && formsObj) {
+      Object.values(formsObj).forEach(f => {
+        window.PostgresSync.syncFDForm(f).catch(() => {});
+      });
+    }
   }
 
   function saveFDRates(ratesArr) {
@@ -128,7 +160,7 @@ const CentralBackup = (function () {
     }
   }
 
-  // Load OD Data
+  // Load OD Data (LocalStorage + Neon Cloud)
   function getODLoans() {
     try {
       const raw = localStorage.getItem(OD_LOANS_KEY);
@@ -140,6 +172,11 @@ const CentralBackup = (function () {
 
   function saveODLoans(loansObj) {
     localStorage.setItem(OD_LOANS_KEY, JSON.stringify(loansObj || {}));
+    if (window.PostgresSync && window.PostgresSync.syncODLoan && loansObj) {
+      Object.values(loansObj).forEach(l => {
+        window.PostgresSync.syncODLoan(l).catch(() => {});
+      });
+    }
   }
 
   // Ensure SheetJS is available

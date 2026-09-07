@@ -156,30 +156,63 @@ const OverdraftApp = {
 
   async startNeonDeviceSync() {
     const pullCloudOD = async () => {
-      if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
+      if (window.PostgresSync && window.PostgresSync.fetchODLoans) {
         try {
-          const res = await window.PostgresSync.runNeonQuery("SELECT payload FROM jccb_od_loans ORDER BY updated_at DESC;");
-          if (res && res.rows && res.rows.length) {
-            let allRecords = this.getAllRecords();
-            let changed = false;
-            res.rows.forEach(r => {
-              const item = r.payload || r;
-              if (item && item.id && !allRecords[item.id]) {
-                allRecords[item.id] = item;
-                changed = true;
+          const [cloudLoans, deletedIds] = await Promise.all([
+            window.PostgresSync.fetchODLoans().catch(() => []),
+            (window.PostgresSync.fetchDeletedRecordIds ? window.PostgresSync.fetchDeletedRecordIds('od') : Promise.resolve([])).catch(() => [])
+          ]);
+
+          let allRecords = this.getAllRecords();
+          const deletedSet = new Set(deletedIds || []);
+          let changed = false;
+
+          // 1. Remove locally any record deleted in cloud
+          deletedSet.forEach(delId => {
+            if (allRecords[delId]) {
+              delete allRecords[delId];
+              changed = true;
+            }
+          });
+
+          // 2. Merge cloud records
+          if (Array.isArray(cloudLoans)) {
+            cloudLoans.forEach(item => {
+              if (item && item.id && !deletedSet.has(String(item.id))) {
+                const local = allRecords[item.id];
+                if (!local) {
+                  allRecords[item.id] = item;
+                  changed = true;
+                } else if (item.updatedAt && (!local.updatedAt || new Date(item.updatedAt) >= new Date(local.updatedAt))) {
+                  allRecords[item.id] = { ...local, ...item };
+                  changed = true;
+                }
               }
             });
-            if (changed) {
-              localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
-              this.updateRegisterTable();
-              this.updateReportMetrics();
-            }
+
+            // 3. Dual-write any local loans missing in cloud
+            Object.values(allRecords).forEach(localOD => {
+              if (localOD && localOD.id && !deletedSet.has(String(localOD.id))) {
+                const inCloud = cloudLoans.some(cf => String(cf.id) === String(localOD.id));
+                if (!inCloud && window.PostgresSync.syncODLoan) {
+                  window.PostgresSync.syncODLoan(localOD).catch(() => { });
+                }
+              }
+            });
           }
-        } catch(e) {}
+
+          if (changed) {
+            localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
+            this.updateRegisterTable();
+            this.updateReportMetrics();
+          }
+        } catch (e) {
+          console.warn("[OD Sync] Cloud pull notice:", e);
+        }
       }
     };
     pullCloudOD();
-    setInterval(pullCloudOD, 20000);
+    setInterval(pullCloudOD, 10000);
   },
 
   setupSessionAndBranchLock() {
@@ -618,6 +651,9 @@ const OverdraftApp = {
     const all = this.getAllRecords();
     delete all[id];
     localStorage.setItem('tjccb_od_loans', JSON.stringify(all));
+    if (window.PostgresSync && window.PostgresSync.deleteODLoan) {
+      window.PostgresSync.deleteODLoan(id).catch(() => {});
+    }
     this.updateRegisterTable();
     this.updateReportMetrics();
   },
