@@ -23,7 +23,7 @@ if (fs.existsSync(serviceAccountPath)) {
   });
 } else {
   admin.initializeApp({
-    projectId: 'project-484328444876485620'
+    projectId: 'jccbtools'
   });
 }
 

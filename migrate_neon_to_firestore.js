@@ -8,7 +8,7 @@
 const https = require('https');
 
 const NEON_CONN_STR = "postgresql://neondb_owner:npg_kF5qI9QzSacN@ep-floral-frog-b3s0jrlo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require";
-const FIREBASE_PROJECT_ID = "project-484328444876485620";
+const FIREBASE_PROJECT_ID = "jccbtools";
 
 function runNeonQuery(sql, params = []) {
   return new Promise((resolve, reject) => {

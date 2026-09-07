@@ -11,6 +11,7 @@ const items = [
   'merger.html',
   'central-backup.js',
   'firebase-sync.js',
+  'firebase.json',
   'firestore.rules',
   'firestore.indexes.json',
   'migrate_neon_to_firestore.js',

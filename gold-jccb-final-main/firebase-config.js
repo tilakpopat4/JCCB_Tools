@@ -4,13 +4,13 @@
  */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAdIRywb7xDw9xbTzgE2fl9sn2d4LduTKs",
-  authDomain: "project-484328444876485620.firebaseapp.com",
-  projectId: "project-484328444876485620",
-  storageBucket: "project-484328444876485620.firebasestorage.app",
-  messagingSenderId: "811112744598",
-  appId: "1:811112744598:web:165dfd8dd9e0b648f0a4b7",
-  measurementId: "G-VRGC863RKH"
+  apiKey: "AIzaSyCuqV1wofO-dfb134Oehjm7NNPK5aRGCn0",
+  authDomain: "jccbtools.firebaseapp.com",
+  projectId: "jccbtools",
+  storageBucket: "jccbtools.firebasestorage.app",
+  messagingSenderId: "652615139127",
+  appId: "1:652615139127:web:c0d38c2fe56cd3e2c464b2",
+  measurementId: "G-SD139BQ7NN"
 };
 
 // Default static branch list used for initial seed / offline fallback (All 18 Branches)

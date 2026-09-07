@@ -1,0 +1,35 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "dist",
+    "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "/fd",
+        "destination": "/fd-module/index.html"
+      },
+      {
+        "source": "/od",
+        "destination": "/od-module/index.html"
+      },
+      {
+        "source": "/gold",
+        "destination": "/gold-jccb-final-main/index.html"
+      },
+      {
+        "source": "/management",
+        "destination": "/gold-jccb-final-main/management/index.html"
+      }
+    ],
+    "ignore": [
+      "firebase.json",
+      "firestore.rules",
+      "firestore.indexes.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}
