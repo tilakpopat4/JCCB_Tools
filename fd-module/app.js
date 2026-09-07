@@ -1497,7 +1497,7 @@ const FDApp = {
     if (pc) pc.style.display = 'none';
   },
 
-  saveToLocalStorage() {
+  async saveToLocalStorage() {
     if (!this.validateForm()) {
       return;
     }
@@ -1510,8 +1510,9 @@ const FDApp = {
     
     let savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
     
-    savedList[formId] = {
+    const recordPayload = {
       id: formId,
+      formNo: formId,
       createdAt: Date.now(),
       timestamp: timestampNow,
       customerName: custName,
@@ -1524,25 +1525,34 @@ const FDApp = {
       roi: data['deposit1Roi'] || '0.00',
       maturityAmount: data['deposit1MaturityAmount'] || '',
       tenure: `${data['deposit1Years'] || 0}Y ${data['deposit1Months'] || 0}M ${data['deposit1Days'] || 0}D`,
-      data: data
+      data: data,
+      updatedAt: new Date().toISOString()
     };
 
+    savedList[formId] = recordPayload;
     localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
     
     // Cloud Database Dual-Write Sync (Neon Postgres)
+    let syncSuccess = false;
     if (window.PostgresSync && typeof window.PostgresSync.syncFDForm === 'function') {
       try {
-        window.PostgresSync.syncFDForm(savedList[formId]);
-      } catch(e) {}
+        syncSuccess = await window.PostgresSync.syncFDForm(recordPayload);
+        console.log(`⚡ [FD Save] Neon cloud sync status for ${formId}:`, syncSuccess ? "SUCCESS" : "FAILED");
+      } catch(e) {
+        console.error("❌ [FD Save] Neon cloud sync error:", e);
+      }
     }
 
-    alert(`✓ Record saved successfully!\nCustomer: ${custName}\nRef ID: ${formId}`);
+    alert(`✓ Record saved successfully!\nCustomer: ${custName}\nRef ID: ${formId}${syncSuccess ? '\n⚡ Synced to Neon Cloud' : ''}`);
     
     // Clear form so next time user opens FD Entry Form, it is fresh & blank
     this.clearFormCleanly();
 
     this.updateRegisterBadgeCount();
     this.switchView('register');
+    if (typeof this.pullCloudFD === 'function') {
+      this.pullCloudFD();
+    }
   },
 
   clearFormCleanly() {

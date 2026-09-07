@@ -628,7 +628,8 @@ const OverdraftApp = {
       interestRate,
       loanPurpose,
       savingAccNo,
-      fdReceipts
+      fdReceipts,
+      updatedAt: new Date().toISOString()
     };
 
     const allRecords = this.getAllRecords();
@@ -636,19 +637,26 @@ const OverdraftApp = {
     localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
 
     // Cloud Database Dual-Write Sync (Neon Postgres)
+    let syncSuccess = false;
     if (window.PostgresSync && typeof window.PostgresSync.syncODLoan === 'function') {
       try {
-        window.PostgresSync.syncODLoan(record);
-      } catch(e) {}
+        syncSuccess = await window.PostgresSync.syncODLoan(record);
+        console.log(`⚡ [OD Save] Neon cloud sync status for ${recordId}:`, syncSuccess ? "SUCCESS" : "FAILED");
+      } catch(e) {
+        console.error("❌ [OD Save] Neon cloud sync error:", e);
+      }
     }
 
-    alert(`✓ ઓવરડ્રાફ્ટ લોન રેકોર્ડ સફળતાપૂર્વક સેવ થયો!\nગ્રાહકનું નામ: ${cust1Name.toUpperCase()}\nલોન રકમ: ₹ ${loanAmount.toLocaleString('en-IN')}`);
+    alert(`✓ ઓવરડ્રાફ્ટ લોન રેકોર્ડ સફળતાપૂર્વક સેવ થયો!\nગ્રાહકનું નામ: ${cust1Name.toUpperCase()}\nલોન રકમ: ₹ ${loanAmount.toLocaleString('en-IN')}${syncSuccess ? '\n⚡ Synced to Neon Cloud' : ''}`);
     
     this.currentRecordId = null;
     this.resetForm();
     this.updateRegisterTable();
     this.updateReportMetrics();
     this.switchTab('register');
+    if (typeof this.pullCloudOD === 'function') {
+      this.pullCloudOD();
+    }
   },
 
   getAllRecords() {
