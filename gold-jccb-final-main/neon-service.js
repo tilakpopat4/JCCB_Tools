@@ -295,10 +295,22 @@
     saveBranch: async function (b) { return b; },
 
     getValuersList: async function () {
-      if (window.PostgresSync && window.PostgresSync.fetchGoldSettings) {
-        const valuers = await window.PostgresSync.fetchGoldSettings('valuers');
-        if (valuers) return valuers;
+      if (window.FirebaseSync && typeof window.FirebaseSync.getValuersList === "function") {
+        try {
+          const valRes = await window.FirebaseSync.getValuersList();
+          if (valRes && (Array.isArray(valRes.list) || Array.isArray(valRes))) {
+            return valRes;
+          }
+        } catch (e) { }
       }
+
+      if (window.PostgresSync && window.PostgresSync.fetchGoldSettings) {
+        try {
+          const valuers = await window.PostgresSync.fetchGoldSettings('valuers');
+          if (valuers) return valuers;
+        } catch (e) { }
+      }
+
       try {
         const raw = localStorage.getItem("jccb_gold_system_state_v2");
         if (raw) {
@@ -308,12 +320,28 @@
       } catch (e) { }
       return [];
     },
+
     saveValuersList: async function (valuers, deletedIds = []) {
+      const vList = Array.isArray(valuers) ? valuers : [];
+      const dIds = Array.isArray(deletedIds) ? deletedIds : [];
+
+      if (window.FirebaseSync && typeof window.FirebaseSync.saveValuersList === "function") {
+        try {
+          await window.FirebaseSync.saveValuersList(vList, dIds);
+          console.log(`⚡ [NeonGoldService] Valuers saved to Firebase Firestore (${vList.length} valuers)`);
+        } catch (e) {
+          console.warn("[NeonGoldService] Firebase Valuers save notice:", e);
+        }
+      }
+
       if (window.PostgresSync && window.PostgresSync.syncGoldSettings) {
-        await window.PostgresSync.syncGoldSettings('valuers', { list: valuers, deletedIds });
+        try {
+          await window.PostgresSync.syncGoldSettings('valuers', { list: vList, deletedIds: dIds });
+        } catch (e) { }
       }
       return valuers;
     },
+
     saveValuer: async function (v) {
       const current = await this.getValuersList();
       const list = Array.isArray(current) ? current : (current.list || []);
@@ -323,10 +351,29 @@
       await this.saveValuersList(list);
       return v;
     },
+
     listenValuers: function (callback) {
-      if (typeof callback === "function") {
-        this.getValuersList().then(list => callback(list, []));
+      if (typeof callback !== "function") return;
+
+      // 1. Firebase Firestore Live Realtime Push
+      if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToValuers === "function") {
+        try {
+          window.FirebaseSync.subscribeToValuers((list, deletedIds) => {
+            if (Array.isArray(list)) {
+              callback(list, deletedIds || []);
+            }
+          });
+        } catch (e) {
+          console.warn("[NeonGoldService] Realtime valuers subscription notice:", e);
+        }
       }
+
+      // 2. Initial fetch
+      this.getValuersList().then(res => {
+        const list = Array.isArray(res) ? res : ((res && Array.isArray(res.list)) ? res.list : []);
+        const del = (res && Array.isArray(res.deletedIds)) ? res.deletedIds : [];
+        if (list.length > 0) callback(list, del);
+      }).catch(() => {});
     },
 
     getProductsList: async function () {

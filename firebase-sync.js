@@ -897,6 +897,88 @@
     return report;
   }
 
+  /**
+   * Save Valuers Master into Firestore
+   */
+  async function saveValuersList(valuersList, deletedIds = []) {
+    await init();
+    if (!db) throw new Error("Firestore not initialized.");
+
+    const payload = {
+      list: Array.isArray(valuersList) ? valuersList : [],
+      deletedIds: Array.isArray(deletedIds) ? deletedIds : [],
+      count: Array.isArray(valuersList) ? valuersList.length : 0,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAtIso: new Date().toISOString()
+    };
+
+    await db.collection('goldSettings').doc('valuers').set(payload, { merge: true });
+    try {
+      await db.collection('settings').doc('valuersList').set(payload, { merge: true });
+    } catch (e) { }
+
+    console.log(`⚡ [FirebaseSync] Saved ${payload.count} valuers to Firestore.`);
+    logActivity('SAVE_VALUERS_LIST', 'gold', { count: payload.count }).catch(() => {});
+    return payload;
+  }
+
+  /**
+   * Get Valuers Master from Firestore
+   */
+  async function getValuersList() {
+    await init();
+    if (!db) return [];
+
+    try {
+      const doc = await db.collection('goldSettings').doc('valuers').get();
+      if (doc.exists) {
+        const d = doc.data();
+        if (d && Array.isArray(d.list)) return d;
+      }
+      const legacyDoc = await db.collection('settings').doc('valuersList').get();
+      if (legacyDoc.exists) {
+        const d = legacyDoc.data();
+        if (d && Array.isArray(d.list)) return d;
+      }
+    } catch (e) {
+      console.warn("[FirebaseSync] Error fetching valuers:", e);
+    }
+    return [];
+  }
+
+  /**
+   * Subscribe to Valuers Master live changes
+   */
+  async function subscribeToValuers(onDataCallback) {
+    await init();
+    if (!db) return () => {};
+
+    const unsubKey = 'valuersMaster';
+    if (activeSubscriptions[unsubKey]) {
+      try { activeSubscriptions[unsubKey](); } catch (e) { }
+    }
+
+    const unsub = db.collection('goldSettings').doc('valuers').onSnapshot(
+      (doc) => {
+        if (doc.exists) {
+          const d = doc.data();
+          const list = (d && Array.isArray(d.list)) ? d.list : [];
+          const deletedIds = (d && Array.isArray(d.deletedIds)) ? d.deletedIds : [];
+          console.log(`⚡ [FirebaseSync] Received ${list.length} live valuers from Firestore.`);
+          if (typeof onDataCallback === 'function') {
+            onDataCallback(list, deletedIds);
+          }
+        }
+      },
+      (err) => {
+        console.warn("[FirebaseSync] Valuers listener error:", err.message);
+      }
+    );
+
+    activeSubscriptions[unsubKey] = unsub;
+    return unsub;
+  }
+
   // =========================================================================
   // PUBLIC API EXPORT
   // =========================================================================
@@ -912,6 +994,7 @@
     subscribeToGoldLoans: subscribeToGoldLoans,
     subscribeToODLoans: subscribeToODLoans,
     subscribeToDeletedRecords: subscribeToDeletedRecords,
+    subscribeToValuers: subscribeToValuers,
 
     // Writes
     saveFDForm: saveFDForm,
@@ -925,6 +1008,8 @@
     logActivity: logActivity,
     getBranches: getBranches,
     saveBranches: saveBranches,
+    saveValuersList: saveValuersList,
+    getValuersList: getValuersList,
 
     // Migration
     migrateNeonToFirestore: migrateNeonToFirestore

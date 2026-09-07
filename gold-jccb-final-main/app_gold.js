@@ -940,34 +940,31 @@ document.addEventListener("DOMContentLoaded", () => {
             // 7. Listen for realtime Valuers Master
             if (typeof window.FirebaseService.listenValuers === "function") {
                 window.FirebaseService.listenValuers((cloudValuers, cloudDeletedIds) => {
-                    if (Array.isArray(cloudDeletedIds) && cloudDeletedIds.length > 0) {
+                    const rawList = Array.isArray(cloudValuers) ? cloudValuers : ((cloudValuers && Array.isArray(cloudValuers.list)) ? cloudValuers.list : []);
+                    const dIds = Array.isArray(cloudDeletedIds) ? cloudDeletedIds : ((cloudValuers && Array.isArray(cloudValuers.deletedIds)) ? cloudValuers.deletedIds : []);
+
+                    if (dIds.length > 0) {
                         if (!state.deletedValuerIds) state.deletedValuerIds = [];
-                        cloudDeletedIds.forEach(id => {
+                        dIds.forEach(id => {
                             if (id && !state.deletedValuerIds.includes(id)) state.deletedValuerIds.push(id);
                         });
                     }
-                    const delIds = state.deletedValuerIds || [];
-                    if (Array.isArray(cloudValuers) && cloudValuers.length > 0) {
+                    const delIds = new Set(state.deletedValuerIds || []);
+
+                    if (rawList.length > 0) {
                         const valMap = new Map();
-                        (DEFAULT_VALUERS || []).forEach(v => {
-                            if (v && !delIds.includes(v.id) && !delIds.includes(v.name)) {
-                                valMap.set(v.name || v.id, { ...v });
-                            }
-                        });
-                        (state.valuers || []).forEach(v => {
-                            if (v && !delIds.includes(v.id) && !delIds.includes(v.name)) {
-                                valMap.set(v.name || v.id, { ...(valMap.get(v.name || v.id) || {}), ...v });
-                            }
-                        });
-                        cloudValuers.forEach(v => {
-                            if (v && !delIds.includes(v.id) && !delIds.includes(v.name)) {
-                                valMap.set(v.name || v.id, { ...(valMap.get(v.name || v.id) || {}), ...v });
+                        rawList.forEach(v => {
+                            if (!v) return;
+                            const idKey = String(v.id || '').trim();
+                            const nameKey = String(v.name || '').trim().toUpperCase();
+                            if ((idKey && !delIds.has(idKey)) && (!nameKey || !delIds.has(nameKey))) {
+                                valMap.set(idKey || nameKey, v);
                             }
                         });
                         state.valuers = Array.from(valMap.values());
                         saveState();
                         if (typeof renderValuers === "function") renderValuers();
-                        console.log("[Firebase] Realtime Valuers Master synced & merged across PCs:", state.valuers.length);
+                        console.log("[Firebase] Realtime Valuers Master synced accurately across PCs:", state.valuers.length);
                     }
                 });
             }
@@ -1113,7 +1110,7 @@ async function syncCloudData(isManual = false) {
             }
         }
 
-        // 5. Sync Valuers List (Non-destructive Smart Union Merge)
+        // 5. Sync Valuers List
         if (typeof window.FirebaseService.getValuersList === "function") {
             const fbValuersRes = await window.FirebaseService.getValuersList();
             if (fbValuersRes) {
@@ -1125,29 +1122,24 @@ async function syncCloudData(isManual = false) {
                         if (id && !state.deletedValuerIds.includes(id)) state.deletedValuerIds.push(id);
                     });
                 }
-                const delIds = state.deletedValuerIds || [];
+                const delIds = new Set(state.deletedValuerIds || []);
 
-                const valMap = new Map();
-                (DEFAULT_VALUERS || []).forEach(v => {
-                    if (v && !delIds.includes(v.id) && !delIds.includes(v.name)) {
-                        valMap.set(v.name || v.id, { ...v });
-                    }
-                });
-                (state.valuers || []).forEach(v => {
-                    if (v && !delIds.includes(v.id) && !delIds.includes(v.name)) {
-                        valMap.set(v.name || v.id, { ...(valMap.get(v.name || v.id) || {}), ...v });
-                    }
-                });
-                fbList.forEach(v => {
-                    if (v && !delIds.includes(v.id) && !delIds.includes(v.name)) {
-                        valMap.set(v.name || v.id, { ...(valMap.get(v.name || v.id) || {}), ...v });
-                    }
-                });
-
-                state.valuers = Array.from(valMap.values());
-                saveState();
-                if (typeof renderValuers === "function") renderValuers();
-                window.FirebaseService.saveValuersList(state.valuers, state.deletedValuerIds).catch(() => { });
+                if (fbList.length > 0) {
+                    const valMap = new Map();
+                    fbList.forEach(v => {
+                        if (!v) return;
+                        const idKey = String(v.id || '').trim();
+                        const nameKey = String(v.name || '').trim().toUpperCase();
+                        if ((idKey && !delIds.has(idKey)) && (!nameKey || !delIds.has(nameKey))) {
+                            valMap.set(idKey || nameKey, v);
+                        }
+                    });
+                    state.valuers = Array.from(valMap.values());
+                    saveState();
+                    if (typeof renderValuers === "function") renderValuers();
+                } else if (Array.isArray(state.valuers) && state.valuers.length > 0) {
+                    window.FirebaseService.saveValuersList(state.valuers, state.deletedValuerIds).catch(() => { });
+                }
             }
         }
 
@@ -6592,7 +6584,12 @@ function renderValuers() {
     const isHO = isHeadOfficeSession();
 
     if (!state.valuers) state.valuers = DEFAULT_VALUERS ? [...DEFAULT_VALUERS] : [];
-    if (countSpan) countSpan.textContent = state.valuers.length;
+    const valCount = (state.valuers || []).length;
+    if (countSpan) countSpan.textContent = valCount;
+    const statValuersEl = document.getElementById("stat-total-valuers");
+    if (statValuersEl) statValuersEl.textContent = valCount;
+    const bkpValuersEl = document.getElementById("bkp-stat-valuers");
+    if (bkpValuersEl) bkpValuersEl.textContent = valCount;
 
     if (selectValuer) {
         const curVal = selectValuer.value;
