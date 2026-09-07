@@ -855,8 +855,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Trigger immediate sync on page startup
     syncCloudData();
 
-    // Continuous 5-second resilient background cloud polling across all machines
-    setInterval(() => syncCloudData(false), 5000);
+    // Continuous background cloud polling throttled to 5 minutes (Real-time onSnapshot listeners handle live data)
+    setInterval(() => syncCloudData(false), 300000);
 
     // Initialize Firebase Realtime Cloud Backend & Background Auto-Sync
     if (window.FirebaseService) {

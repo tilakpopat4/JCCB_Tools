@@ -430,32 +430,127 @@ const FirebaseService = {
     },
 
     /**
-     * Save a gold loan record to Firestore (Dual SDK + REST fallback)
+     * Client-side photo resizing and compression helper (~150KB max)
+     */
+    compressBase64ImageClient: async function(base64Data, maxDim = 800, quality = 0.75) {
+        if (typeof window === 'undefined' || typeof Image === 'undefined' || typeof document === 'undefined') {
+            return base64Data;
+        }
+        if (!base64Data || typeof base64Data !== 'string' || !base64Data.startsWith('data:image')) {
+            return base64Data;
+        }
+        if (base64Data.length < 80 * 1024) {
+            return base64Data;
+        }
+        return new Promise((resolve) => {
+            try {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > maxDim || height > maxDim) {
+                            if (width > height) {
+                                height = Math.round((height * maxDim) / width);
+                                width = maxDim;
+                            } else {
+                                width = Math.round((width * maxDim) / height);
+                                height = maxDim;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        const compressed = canvas.toDataURL('image/jpeg', quality);
+                        resolve(compressed);
+                    } catch (e) {
+                        resolve(base64Data);
+                    }
+                };
+                img.onerror = () => resolve(base64Data);
+                img.src = base64Data;
+            } catch (e) {
+                resolve(base64Data);
+            }
+        });
+    },
+
+    /**
+     * Upload base64 photo to Firebase Storage and return HTTPS download URL
+     */
+    uploadPhotoToStorage: async function(branchCode, recordType, recordId, fieldName, base64Data) {
+        if (!base64Data || typeof base64Data !== 'string') return '';
+        if (base64Data.startsWith('http://') || base64Data.startsWith('https://')) {
+            return base64Data; // Already an HTTPS download URL
+        }
+        if (!base64Data.startsWith('data:') && base64Data.length < 500) {
+            return base64Data;
+        }
+
+        const bCode = String(branchCode || '99').replace(/\D/g, '').padStart(2, '0') || '99';
+        const cleanRecId = String(recordId || Date.now()).replace(/[\/\\]/g, '_').trim();
+        const path = `branches/${bCode}/${recordType}/${cleanRecId}/${fieldName}.jpg`;
+
+        if (this.storage) {
+            try {
+                const storageRef = this.storage.ref().child(path);
+                let formatted = base64Data.startsWith('data:') ? base64Data : `data:image/jpeg;base64,${base64Data}`;
+                // Auto-compress high resolution camera photos to ~100-150KB max before upload
+                formatted = await this.compressBase64ImageClient(formatted, 800, 0.75);
+
+                const snapshot = await storageRef.putString(formatted, 'data_url', {
+                    contentType: 'image/jpeg'
+                });
+                const downloadUrl = await snapshot.ref.getDownloadURL();
+                console.log(`📸 [Storage] Uploaded ${fieldName} to ${path} -> URL saved`);
+                return downloadUrl;
+            } catch (err) {
+                console.warn(`[Storage SDK] Error uploading ${fieldName} to ${path}:`, err);
+            }
+        }
+        return base64Data;
+    },
+
+    /**
+     * Save a gold loan record to Firestore (Uploads photos to Storage, saves light payload to Firestore)
      */
     saveLoan: async function(loanData) {
         const loanId = String(loanData.id || loanData.loanId || `GL_${Date.now()}_${loanData.branchCode || '01'}`).trim();
+        const bCode = String(loanData.branchCode || loanData.branchId || '01').replace(/\D/g, '').padStart(2, '0') || '01';
         
-        let custPhoto = loanData.customerPhoto || "";
-        let ornPhoto = loanData.ornamentPhoto || "";
+        let custPhoto = loanData.customerPhoto || loanData.applicantPhoto || loanData.photo || "";
+        let ornPhoto = loanData.ornamentPhoto || loanData.goldPhoto || "";
 
-        if (typeof custPhoto === "string" && custPhoto.startsWith("data:image") && custPhoto.length > 120000) {
+        // 1. Upload applicant / customer photo to Firebase Storage
+        if (custPhoto && (custPhoto.startsWith("data:") || custPhoto.length > 500)) {
             try {
-                custPhoto = await this.compressBase64Image(custPhoto, 400, 0.6);
-            } catch (e) {}
+                custPhoto = await this.uploadPhotoToStorage(bCode, 'loans', loanId, 'applicantPhoto', custPhoto);
+            } catch (e) {
+                console.warn("[Firebase] Failed to upload applicant photo to storage:", e);
+            }
         }
-        if (typeof ornPhoto === "string" && ornPhoto.startsWith("data:image") && ornPhoto.length > 120000) {
+
+        // 2. Upload ornament photo to Firebase Storage
+        if (ornPhoto && (ornPhoto.startsWith("data:") || ornPhoto.length > 500)) {
             try {
-                ornPhoto = await this.compressBase64Image(ornPhoto, 400, 0.6);
-            } catch (e) {}
+                ornPhoto = await this.uploadPhotoToStorage(bCode, 'loans', loanId, 'ornamentPhoto', ornPhoto);
+            } catch (e) {
+                console.warn("[Firebase] Failed to upload ornament photo to storage:", e);
+            }
         }
 
         const rawPayload = {
             ...loanData,
             id: loanId,
             loanId: loanId,
+            applicantPhoto: custPhoto,
             customerPhoto: custPhoto,
             ornamentPhoto: ornPhoto,
-            branchId: String(loanData.branchCode || loanData.branchId || '01'),
+            goldPhoto: ornPhoto,
+            branchId: bCode,
+            branchCode: bCode,
             updatedAt: new Date().toISOString(),
             updatedBy: this.currentUser ? this.currentUser.uid : (loanData.updatedBy || 'SYSTEM')
         };
@@ -547,12 +642,30 @@ const FirebaseService = {
         return list;
     },
 
+    _unsubLoans: null,
+    _unsubDeletedLoans: null,
+    _unsubDailyRates: null,
+    _unsubCustSettings: null,
+    _unsubCustCollection: null,
+    _unsubSettings: null,
+    _unsubRules: null,
+    _unsubBranches: null,
+    _unsubValuers: null,
+    _unsubProducts: null,
+    _unsubAuditLogs: null,
+    _unsubActiveSessions: null,
+    _unsubGlobalSync: null,
+
     /**
      * Realtime listener for loan records across all branches & Head Office
      */
     listenLoans: function(branchCode, onUpdate) {
         if (!this.db) return () => {};
-        return this.db.collection('loans').onSnapshot((snapshot) => {
+        if (typeof this._unsubLoans === 'function') {
+            try { this._unsubLoans(); } catch (e) {}
+            this._unsubLoans = null;
+        }
+        const unsub = this.db.collection('loans').onSnapshot((snapshot) => {
             const list = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
@@ -564,6 +677,13 @@ const FirebaseService = {
         }, (err) => {
             console.warn("[Firebase] Loan snapshot listener notice:", err);
         });
+        this._unsubLoans = unsub;
+        return () => {
+            if (typeof this._unsubLoans === 'function') {
+                try { this._unsubLoans(); } catch (e) {}
+                this._unsubLoans = null;
+            }
+        };
     },
 
     /**
@@ -623,7 +743,11 @@ const FirebaseService = {
      */
     listenDeletedLoans: function(onDeleted) {
         if (!this.db || typeof onDeleted !== 'function') return () => {};
-        return this.db.collection('deleted_loans').onSnapshot((snapshot) => {
+        if (typeof this._unsubDeletedLoans === 'function') {
+            try { this._unsubDeletedLoans(); } catch (e) {}
+            this._unsubDeletedLoans = null;
+        }
+        const unsub = this.db.collection('deleted_loans').onSnapshot((snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added' || change.type === 'modified') {
                     const data = change.doc.data();
@@ -634,6 +758,13 @@ const FirebaseService = {
         }, (err) => {
             console.warn("[Firebase] Deleted loans listener notice:", err);
         });
+        this._unsubDeletedLoans = unsub;
+        return () => {
+            if (typeof this._unsubDeletedLoans === 'function') {
+                try { this._unsubDeletedLoans(); } catch (e) {}
+                this._unsubDeletedLoans = null;
+            }
+        };
     },
 
     /**
@@ -774,13 +905,24 @@ const FirebaseService = {
      */
     listenDailyRates: function(onUpdate) {
         if (!this.db) return () => {};
-        return this.db.collection('rates').doc('today').onSnapshot((doc) => {
+        if (typeof this._unsubDailyRates === 'function') {
+            try { this._unsubDailyRates(); } catch (e) {}
+            this._unsubDailyRates = null;
+        }
+        const unsub = this.db.collection('rates').doc('today').onSnapshot((doc) => {
             if (doc.exists && typeof onUpdate === 'function') {
                 onUpdate(doc.data());
             }
         }, (err) => {
             console.warn("[Firebase] Rates listener notice:", err);
         });
+        this._unsubDailyRates = unsub;
+        return () => {
+            if (typeof this._unsubDailyRates === 'function') {
+                try { this._unsubDailyRates(); } catch (e) {}
+                this._unsubDailyRates = null;
+            }
+        };
     },
 
     // =================================================================
@@ -793,11 +935,25 @@ const FirebaseService = {
     saveCustomer: async function(custData) {
         if (!this.db) return custData;
         const custId = String(custData.customerNo || custData.id || `CUST_${Date.now()}`).trim();
+        const bCode = String(custData.branchCode || custData.branchId || '99').replace(/\D/g, '').padStart(2, '0') || '99';
+        
+        let photo = custData.photo || custData.customerPhoto || custData.applicantPhoto || "";
+        if (photo && (photo.startsWith("data:") || photo.length > 500)) {
+            try {
+                photo = await this.uploadPhotoToStorage(bCode, 'customers', custId, 'customerPhoto', photo);
+            } catch (e) {
+                console.warn("[Firebase] Failed to upload customer photo to storage:", e);
+            }
+        }
+
         const docRef = this.db.collection('customers').doc(custId);
         const payload = {
             ...custData,
             id: custId,
             customerNo: custData.customerNo || custId,
+            photo: photo,
+            customerPhoto: photo,
+            applicantPhoto: photo,
             updatedAt: new Date().toISOString()
         };
         if (!custData.createdAt) {
@@ -851,8 +1007,17 @@ const FirebaseService = {
      */
     listenCustomers: function(onUpdate) {
         if (!this.db) return () => {};
+        if (typeof this._unsubCustSettings === 'function') {
+            try { this._unsubCustSettings(); } catch (e) {}
+            this._unsubCustSettings = null;
+        }
+        if (typeof this._unsubCustCollection === 'function') {
+            try { this._unsubCustCollection(); } catch (e) {}
+            this._unsubCustCollection = null;
+        }
+
         // Listen to settings/customersList
-        this.db.collection('settings').doc('customersList').onSnapshot((doc) => {
+        this._unsubCustSettings = this.db.collection('settings').doc('customersList').onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
                 if (Array.isArray(data.list) && typeof onUpdate === 'function') {
@@ -862,7 +1027,7 @@ const FirebaseService = {
         }, () => {});
 
         // Also listen to customers collection
-        return this.db.collection('customers').onSnapshot((snapshot) => {
+        this._unsubCustCollection = this.db.collection('customers').onSnapshot((snapshot) => {
             const list = [];
             snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
             if (typeof onUpdate === 'function' && list.length > 0) {
@@ -871,6 +1036,17 @@ const FirebaseService = {
         }, (err) => {
             console.warn("[Firebase] Customer snapshot error:", err);
         });
+
+        return () => {
+            if (typeof this._unsubCustSettings === 'function') {
+                try { this._unsubCustSettings(); } catch (e) {}
+                this._unsubCustSettings = null;
+            }
+            if (typeof this._unsubCustCollection === 'function') {
+                try { this._unsubCustCollection(); } catch (e) {}
+                this._unsubCustCollection = null;
+            }
+        };
     },
 
     /**
@@ -942,13 +1118,24 @@ const FirebaseService = {
      */
     listenSettings: function(onUpdate) {
         if (!this.db) return () => {};
-        return this.db.collection('settings').doc('branchSeeds').onSnapshot((doc) => {
+        if (typeof this._unsubSettings === 'function') {
+            try { this._unsubSettings(); } catch (e) {}
+            this._unsubSettings = null;
+        }
+        const unsub = this.db.collection('settings').doc('branchSeeds').onSnapshot((doc) => {
             if (doc.exists && typeof onUpdate === 'function') {
                 onUpdate(doc.data());
             }
         }, (err) => {
             console.warn("[Firebase] Settings snapshot error:", err);
         });
+        this._unsubSettings = unsub;
+        return () => {
+            if (typeof this._unsubSettings === 'function') {
+                try { this._unsubSettings(); } catch (e) {}
+                this._unsubSettings = null;
+            }
+        };
     },
 
     // =================================================================
@@ -1012,13 +1199,24 @@ const FirebaseService = {
      */
     listenRules: function(onUpdate) {
         if (!this.db) return () => {};
-        return this.db.collection('settings').doc('rulesMaster').onSnapshot((doc) => {
+        if (typeof this._unsubRules === 'function') {
+            try { this._unsubRules(); } catch (e) {}
+            this._unsubRules = null;
+        }
+        const unsub = this.db.collection('settings').doc('rulesMaster').onSnapshot((doc) => {
             if (doc.exists && typeof onUpdate === 'function') {
                 onUpdate(doc.data());
             }
         }, (err) => {
             console.warn("[Firebase] Rules listener error:", err);
         });
+        this._unsubRules = unsub;
+        return () => {
+            if (typeof this._unsubRules === 'function') {
+                try { this._unsubRules(); } catch (e) {}
+                this._unsubRules = null;
+            }
+        };
     },
 
     // =================================================================
@@ -1132,7 +1330,11 @@ const FirebaseService = {
      */
     listenBranches: function(onUpdate) {
         if (!this.db) return () => {};
-        return this.db.collection('settings').doc('branchesList').onSnapshot((doc) => {
+        if (typeof this._unsubBranches === 'function') {
+            try { this._unsubBranches(); } catch (e) {}
+            this._unsubBranches = null;
+        }
+        const unsub = this.db.collection('settings').doc('branchesList').onSnapshot((doc) => {
             if (doc.exists && typeof onUpdate === 'function') {
                 const data = doc.data();
                 if (Array.isArray(data.list)) onUpdate(data.list);
@@ -1140,6 +1342,13 @@ const FirebaseService = {
         }, (err) => {
             console.warn("[Firebase] Branches listener error:", err);
         });
+        this._unsubBranches = unsub;
+        return () => {
+            if (typeof this._unsubBranches === 'function') {
+                try { this._unsubBranches(); } catch (e) {}
+                this._unsubBranches = null;
+            }
+        };
     },
 
     /**
@@ -1193,7 +1402,11 @@ const FirebaseService = {
      */
     listenValuers: function(onUpdate) {
         if (!this.db) return () => {};
-        return this.db.collection('settings').doc('valuersList').onSnapshot((doc) => {
+        if (typeof this._unsubValuers === 'function') {
+            try { this._unsubValuers(); } catch (e) {}
+            this._unsubValuers = null;
+        }
+        const unsub = this.db.collection('settings').doc('valuersList').onSnapshot((doc) => {
             if (doc.exists && typeof onUpdate === 'function') {
                 const data = doc.data();
                 if (Array.isArray(data.list)) onUpdate(data.list, Array.isArray(data.deletedIds) ? data.deletedIds : []);
@@ -1201,6 +1414,13 @@ const FirebaseService = {
         }, (err) => {
             console.warn("[Firebase] Valuers listener error:", err);
         });
+        this._unsubValuers = unsub;
+        return () => {
+            if (typeof this._unsubValuers === 'function') {
+                try { this._unsubValuers(); } catch (e) {}
+                this._unsubValuers = null;
+            }
+        };
     },
 
     /**
@@ -1253,7 +1473,11 @@ const FirebaseService = {
      */
     listenProducts: function(onUpdate) {
         if (!this.db) return () => {};
-        return this.db.collection('settings').doc('productsList').onSnapshot((doc) => {
+        if (typeof this._unsubProducts === 'function') {
+            try { this._unsubProducts(); } catch (e) {}
+            this._unsubProducts = null;
+        }
+        const unsub = this.db.collection('settings').doc('productsList').onSnapshot((doc) => {
             if (doc.exists && typeof onUpdate === 'function') {
                 const data = doc.data();
                 if (Array.isArray(data.list)) onUpdate(data.list);
@@ -1261,6 +1485,13 @@ const FirebaseService = {
         }, (err) => {
             console.warn("[Firebase] Products listener error:", err);
         });
+        this._unsubProducts = unsub;
+        return () => {
+            if (typeof this._unsubProducts === 'function') {
+                try { this._unsubProducts(); } catch (e) {}
+                this._unsubProducts = null;
+            }
+        };
     },
 
     // =================================================================
@@ -1361,14 +1592,25 @@ const FirebaseService = {
      */
     listenAuditLogs: function(onUpdate, limit = 200) {
         if (!this.db) return () => {};
+        if (typeof this._unsubAuditLogs === 'function') {
+            try { this._unsubAuditLogs(); } catch (e) {}
+            this._unsubAuditLogs = null;
+        }
         try {
-            return this.db.collection('audit_logs').orderBy('timestampMs', 'desc').limit(limit).onSnapshot((snapshot) => {
+            const unsub = this.db.collection('audit_logs').orderBy('timestampMs', 'desc').limit(limit).onSnapshot((snapshot) => {
                 const logs = [];
                 snapshot.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
                 if (typeof onUpdate === 'function') onUpdate(logs);
             }, (err) => {
                 console.warn("[Firebase] Audit logs listener error:", err);
             });
+            this._unsubAuditLogs = unsub;
+            return () => {
+                if (typeof this._unsubAuditLogs === 'function') {
+                    try { this._unsubAuditLogs(); } catch (e) {}
+                    this._unsubAuditLogs = null;
+                }
+            };
         } catch (e) {
             return () => {};
         }
@@ -1498,14 +1740,25 @@ const FirebaseService = {
      */
     listenActiveSessions: function(onUpdate) {
         if (!this.db) return () => {};
+        if (typeof this._unsubActiveSessions === 'function') {
+            try { this._unsubActiveSessions(); } catch (e) {}
+            this._unsubActiveSessions = null;
+        }
         try {
-            return this.db.collection('active_sessions').onSnapshot((snapshot) => {
+            const unsub = this.db.collection('active_sessions').onSnapshot((snapshot) => {
                 const sessions = [];
                 snapshot.forEach(doc => sessions.push({ id: doc.id, ...doc.data() }));
                 if (typeof onUpdate === 'function') onUpdate(sessions);
             }, (err) => {
                 console.warn("[Firebase] Active sessions listener error:", err);
             });
+            this._unsubActiveSessions = unsub;
+            return () => {
+                if (typeof this._unsubActiveSessions === 'function') {
+                    try { this._unsubActiveSessions(); } catch (e) {}
+                    this._unsubActiveSessions = null;
+                }
+            };
         } catch (e) {
             return () => {};
         }
@@ -1591,13 +1844,24 @@ const FirebaseService = {
      */
     listenGlobalSyncSignal: function(onSignal) {
         if (!this.db || typeof onSignal !== "function") return () => {};
-        return this.db.collection('settings').doc('global_sync_signal').onSnapshot((doc) => {
+        if (typeof this._unsubGlobalSync === 'function') {
+            try { this._unsubGlobalSync(); } catch (e) {}
+            this._unsubGlobalSync = null;
+        }
+        const unsub = this.db.collection('settings').doc('global_sync_signal').onSnapshot((doc) => {
             if (doc.exists) {
                 onSignal(doc.data());
             }
         }, (err) => {
             console.warn("[Firebase] Global sync signal listener notice:", err);
         });
+        this._unsubGlobalSync = unsub;
+        return () => {
+            if (typeof this._unsubGlobalSync === 'function') {
+                try { this._unsubGlobalSync(); } catch (e) {}
+                this._unsubGlobalSync = null;
+            }
+        };
     },
 
     /**

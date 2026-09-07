@@ -218,17 +218,32 @@
       return Array.from(deletedSet);
     },
 
+    _unsubLoans: null,
+    _unsubDeleted: null,
+    _unsubValuers: null,
+    _deletedPollInterval: null,
+
     listenLoans: function (branchCode, callback) {
-      if (typeof callback !== "function") return;
+      if (typeof callback !== "function") return () => {};
+
+      if (typeof this._unsubLoans === "function") {
+        try { this._unsubLoans(); } catch (e) {}
+        this._unsubLoans = null;
+      }
 
       // 1. Firebase Firestore Instant Realtime Push Subscription
       if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToGoldLoans === "function") {
         try {
-          window.FirebaseSync.subscribeToGoldLoans((cloudLoans) => {
+          const unsub = window.FirebaseSync.subscribeToGoldLoans((cloudLoans) => {
             if (Array.isArray(cloudLoans)) {
               callback(cloudLoans);
             }
           });
+          if (unsub && typeof unsub.then === "function") {
+            unsub.then(fn => { if (typeof fn === "function") this._unsubLoans = fn; });
+          } else if (typeof unsub === "function") {
+            this._unsubLoans = unsub;
+          }
         } catch (fbErr) {
           console.warn("[Gold Live Sync] Firebase subscription notice:", fbErr);
         }
@@ -240,19 +255,40 @@
           callback(loans);
         }
       }).catch(() => {});
+
+      return () => {
+        if (typeof this._unsubLoans === "function") {
+          try { this._unsubLoans(); } catch (e) {}
+          this._unsubLoans = null;
+        }
+      };
     },
 
     listenDeletedLoans: function (callback) {
-      if (typeof callback !== "function") return;
+      if (typeof callback !== "function") return () => {};
+
+      if (typeof this._unsubDeleted === "function") {
+        try { this._unsubDeleted(); } catch (e) {}
+        this._unsubDeleted = null;
+      }
+      if (this._deletedPollInterval) {
+        clearInterval(this._deletedPollInterval);
+        this._deletedPollInterval = null;
+      }
 
       // 1. Firebase Firestore Realtime Deletion Broadcast Listener
       if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToDeletedRecords === "function") {
         try {
-          window.FirebaseSync.subscribeToDeletedRecords('goldLoans', (deletedId) => {
+          const unsub = window.FirebaseSync.subscribeToDeletedRecords('goldLoans', (deletedId) => {
             if (deletedId) {
               callback(deletedId);
             }
           });
+          if (unsub && typeof unsub.then === "function") {
+            unsub.then(fn => { if (typeof fn === "function") this._unsubDeleted = fn; });
+          } else if (typeof unsub === "function") {
+            this._unsubDeleted = unsub;
+          }
         } catch (fbErr) {
           console.warn("[Gold Delete Listener] Firebase deleted subscription notice:", fbErr);
         }
@@ -260,7 +296,7 @@
 
       // 2. Neon fallback query for deleted records
       if (window.PostgresSync && window.PostgresSync.runNeonQuery) {
-        setInterval(async () => {
+        this._deletedPollInterval = setInterval(async () => {
           try {
             const res = await window.PostgresSync.runNeonQuery("SELECT id FROM jccb_deleted_records WHERE module = 'gold' AND deleted_at > NOW() - INTERVAL '15 minutes';");
             if (res && res.rows) {
@@ -269,6 +305,17 @@
           } catch (e) { }
         }, 15000);
       }
+
+      return () => {
+        if (typeof this._unsubDeleted === "function") {
+          try { this._unsubDeleted(); } catch (e) {}
+          this._unsubDeleted = null;
+        }
+        if (this._deletedPollInterval) {
+          clearInterval(this._deletedPollInterval);
+          this._deletedPollInterval = null;
+        }
+      };
     },
 
     // ==========================================
@@ -418,16 +465,26 @@
     },
 
     listenValuers: function (callback) {
-      if (typeof callback !== "function") return;
+      if (typeof callback !== "function") return () => {};
+
+      if (typeof this._unsubValuers === "function") {
+        try { this._unsubValuers(); } catch (e) {}
+        this._unsubValuers = null;
+      }
 
       // 1. Firebase Firestore Live Realtime Push
       if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToValuers === "function") {
         try {
-          window.FirebaseSync.subscribeToValuers((list, deletedIds) => {
+          const unsub = window.FirebaseSync.subscribeToValuers((list, deletedIds) => {
             if (Array.isArray(list)) {
               callback(list, deletedIds || []);
             }
           });
+          if (unsub && typeof unsub.then === "function") {
+            unsub.then(fn => { if (typeof fn === "function") this._unsubValuers = fn; });
+          } else if (typeof unsub === "function") {
+            this._unsubValuers = unsub;
+          }
         } catch (e) {
           console.warn("[NeonGoldService] Realtime valuers subscription notice:", e);
         }
@@ -439,6 +496,13 @@
         const del = (res && Array.isArray(res.deletedIds)) ? res.deletedIds : [];
         if (list.length > 0) callback(list, del);
       }).catch(() => {});
+
+      return () => {
+        if (typeof this._unsubValuers === "function") {
+          try { this._unsubValuers(); } catch (e) {}
+          this._unsubValuers = null;
+        }
+      };
     },
 
     getProductsList: async function () {

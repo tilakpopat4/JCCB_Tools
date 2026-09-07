@@ -154,11 +154,24 @@ const OverdraftApp = {
     this.startRealtimeCloudSync();
   },
 
+  unsubscribeOD: null,
+  unsubscribeDeletedOD: null,
+
   async startRealtimeCloudSync() {
+    // Clean up existing subscriptions before creating new ones
+    if (typeof this.unsubscribeOD === 'function') {
+      try { this.unsubscribeOD(); } catch (e) { }
+      this.unsubscribeOD = null;
+    }
+    if (typeof this.unsubscribeDeletedOD === 'function') {
+      try { this.unsubscribeDeletedOD(); } catch (e) { }
+      this.unsubscribeDeletedOD = null;
+    }
+
     // 1. Firebase Firestore Realtime Subscription
     if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToODLoans === 'function') {
       try {
-        window.FirebaseSync.subscribeToODLoans((cloudLoans) => {
+        const unsubOD = await window.FirebaseSync.subscribeToODLoans((cloudLoans) => {
           let allRecords = this.getAllRecords();
           let changed = false;
 
@@ -190,9 +203,10 @@ const OverdraftApp = {
             this.updateReportMetrics();
           }
         });
+        this.unsubscribeOD = typeof unsubOD === 'function' ? unsubOD : null;
 
         // Listen for cross-device deletions via Firestore
-        window.FirebaseSync.subscribeToDeletedRecords('odLoans', (deletedId) => {
+        const unsubDel = await window.FirebaseSync.subscribeToDeletedRecords('odLoans', (deletedId) => {
           let allRecords = this.getAllRecords();
           if (allRecords[deletedId]) {
             delete allRecords[deletedId];
@@ -201,6 +215,7 @@ const OverdraftApp = {
             this.updateReportMetrics();
           }
         });
+        this.unsubscribeDeletedOD = typeof unsubDel === 'function' ? unsubDel : null;
       } catch (fbErr) {
         console.warn("[OD Realtime Sync] Firebase subscription error:", fbErr);
       }

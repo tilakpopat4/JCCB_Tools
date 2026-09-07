@@ -2,7 +2,7 @@ rules_version = '2';
 
 /**
  * The Junagadh Commercial Co-operative Bank Ltd. (TJCCB)
- * Gold Loan Module Cloud Storage Security Rules
+ * Fixed Deposit (FD) Module Cloud Storage Security Rules
  */
 
 service firebase.storage {

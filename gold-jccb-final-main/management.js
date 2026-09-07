@@ -198,8 +198,8 @@ function startRealtimeListeners() {
         });
     }
 
-    // Continuous 5-second polling fallback
-    setInterval(() => loadAllData(false), 5000);
+    // Continuous polling fallback throttled to 5 minutes (Real-time onSnapshot listeners handle live data)
+    setInterval(() => loadAllData(false), 300000);
 }
 
 async function loadAllData(showSpinner = true) {

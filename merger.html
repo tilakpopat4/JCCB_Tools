@@ -20,10 +20,11 @@
   </script>
   <!-- Central Backup Engine -->
   <script src="./central-backup.js"></script>
-  <!-- Firebase SDK & Firestore Realtime Sync Engine -->
+  <!-- Firebase SDK, Firestore & Storage Realtime Sync Engine -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
   <script src="./firebase-sync.js"></script>
   <!-- Supabase & PostgreSQL Sync Engine -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -501,33 +502,50 @@
 
   <script>
     let activeInspection = null;
+    let activeStatsUnsubs = { gold: null, fd: null, od: null };
 
     // Real-Time Firebase Listeners & Fallback Stats Updater
-    function initRealtimeFirebaseStats() {
+    async function initRealtimeFirebaseStats() {
       if (window.FirebaseSync) {
-        window.FirebaseSync.subscribeToGoldLoans((loans) => {
-          const gBadge = document.getElementById('gold-records-count');
-          if (gBadge && Array.isArray(loans)) gBadge.textContent = `${loans.length} Loans`;
-        }).catch(() => {});
+        if (typeof activeStatsUnsubs.gold === 'function') {
+          try { activeStatsUnsubs.gold(); } catch (e) {}
+          activeStatsUnsubs.gold = null;
+        }
+        if (typeof activeStatsUnsubs.fd === 'function') {
+          try { activeStatsUnsubs.fd(); } catch (e) {}
+          activeStatsUnsubs.fd = null;
+        }
+        if (typeof activeStatsUnsubs.od === 'function') {
+          try { activeStatsUnsubs.od(); } catch (e) {}
+          activeStatsUnsubs.od = null;
+        }
 
-        window.FirebaseSync.subscribeToFDForms((forms) => {
-          const fdBadge = document.getElementById('fd-records-count');
-          if (fdBadge && Array.isArray(forms)) fdBadge.textContent = `${forms.length} Accounts`;
-        }).catch(() => {});
+        try {
+          const unsubGold = await window.FirebaseSync.subscribeToGoldLoans((loans) => {
+            const gBadge = document.getElementById('gold-records-count');
+            if (gBadge && Array.isArray(loans)) gBadge.textContent = `${loans.length} Loans`;
+          });
+          activeStatsUnsubs.gold = typeof unsubGold === 'function' ? unsubGold : null;
 
-        window.FirebaseSync.subscribeToODLoans((loans) => {
-          const odBadge = document.getElementById('od-records-count');
-          if (odBadge && Array.isArray(loans)) odBadge.textContent = `${loans.length} Loans`;
-        }).catch(() => {});
+          const unsubFD = await window.FirebaseSync.subscribeToFDForms((forms) => {
+            const fdBadge = document.getElementById('fd-records-count');
+            if (fdBadge && Array.isArray(forms)) fdBadge.textContent = `${forms.length} Accounts`;
+          });
+          activeStatsUnsubs.fd = typeof unsubFD === 'function' ? unsubFD : null;
+
+          const unsubOD = await window.FirebaseSync.subscribeToODLoans((loans) => {
+            const odBadge = document.getElementById('od-records-count');
+            if (odBadge && Array.isArray(loans)) odBadge.textContent = `${loans.length} Loans`;
+          });
+          activeStatsUnsubs.od = typeof unsubOD === 'function' ? unsubOD : null;
+        } catch (e) {
+          console.warn("[Merger Stats] Firebase subscription notice:", e);
+        }
       }
     }
 
     async function updateLauncherStats() {
       try {
-        if (window.FirebaseSync && window.FirebaseSync.init) {
-          initRealtimeFirebaseStats();
-        }
-
         let goldCount = 0;
         let fdCount = 0;
         let odCount = 0;

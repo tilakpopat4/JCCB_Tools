@@ -515,7 +515,91 @@
   }
 
   /**
-   * Save Gold Loan into /goldLoans/{loanId}
+   * Client-side photo resizing and compression helper (~150KB max)
+   */
+  async function compressBase64ImageClient(base64Data, maxDim = 800, quality = 0.75) {
+    if (typeof window === 'undefined' || typeof Image === 'undefined' || typeof document === 'undefined') {
+      return base64Data;
+    }
+    if (!base64Data || typeof base64Data !== 'string' || !base64Data.startsWith('data:image')) {
+      return base64Data;
+    }
+    if (base64Data.length < 80 * 1024) {
+      return base64Data;
+    }
+    return new Promise((resolve) => {
+      try {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressed);
+          } catch (e) {
+            resolve(base64Data);
+          }
+        };
+        img.onerror = () => resolve(base64Data);
+        img.src = base64Data;
+      } catch (e) {
+        resolve(base64Data);
+      }
+    });
+  }
+
+  /**
+   * Upload base64 photo to Firebase Storage and return HTTPS download URL
+   */
+  async function uploadPhotoToStorage(branchCode, recordType, recordId, fieldName, base64Data) {
+    if (!base64Data || typeof base64Data !== 'string') return '';
+    if (base64Data.startsWith('http://') || base64Data.startsWith('https://')) {
+      return base64Data; // Already an HTTPS download URL
+    }
+    if (!base64Data.startsWith('data:') && base64Data.length < 500) {
+      return base64Data;
+    }
+
+    const bCode = String(branchCode || '99').replace(/\D/g, '').padStart(2, '0') || '99';
+    const cleanRecId = String(recordId || Date.now()).replace(/[\/\\]/g, '_').trim();
+    const path = `branches/${bCode}/${recordType}/${cleanRecId}/${fieldName}.jpg`;
+
+    if (typeof firebase !== 'undefined' && firebase.storage) {
+      try {
+        const storageRef = firebase.storage().ref(path);
+        let formatted = base64Data.startsWith('data:') ? base64Data : `data:image/jpeg;base64,${base64Data}`;
+        // Auto-compress high resolution camera photos to ~100-150KB max before upload
+        formatted = await compressBase64ImageClient(formatted, 800, 0.75);
+
+        const snapshot = await storageRef.putString(formatted, 'data_url', {
+          contentType: 'image/jpeg'
+        });
+        const downloadUrl = await snapshot.ref.getDownloadURL();
+        console.log(`📸 [FirebaseSync Storage] Uploaded ${fieldName} to ${path}`);
+        return downloadUrl;
+      } catch (err) {
+        console.warn(`[FirebaseSync Storage] Upload error for ${fieldName} to ${path}:`, err);
+      }
+    }
+    return base64Data;
+  }
+
+  /**
+   * Save Gold Loan into /goldLoans/{loanId} (Uploads photos to Storage, saves light payload to Firestore)
    */
   async function saveGoldLoan(loan) {
     await init();
@@ -535,6 +619,30 @@
     const custId = loan.customerId || loan.customerNo || loanPayload.customerId || loanPayload.customerNo || '';
     const amount = loan.amount || loan.loanAmount || loanPayload.loanAmount || loanPayload.amount || loanPayload.sanctionAmount || '0';
 
+    // 1. Upload applicant / customer photo to Firebase Storage
+    let applicantPhoto = loanPayload.applicantPhoto || loanPayload.customerPhoto || loanPayload.photo || loan.applicantPhoto || loan.customerPhoto || "";
+    if (applicantPhoto && (applicantPhoto.startsWith("data:") || applicantPhoto.length > 500)) {
+      try {
+        applicantPhoto = await uploadPhotoToStorage(cleanBranch, 'loans', cleanId, 'applicantPhoto', applicantPhoto);
+        loanPayload.applicantPhoto = applicantPhoto;
+        loanPayload.customerPhoto = applicantPhoto;
+        if (loanPayload.photo) loanPayload.photo = applicantPhoto;
+        loan.applicantPhoto = applicantPhoto;
+        loan.customerPhoto = applicantPhoto;
+      } catch (e) {}
+    }
+
+    // 2. Upload ornament photo to Firebase Storage
+    let ornamentPhoto = loanPayload.ornamentPhoto || loanPayload.goldPhoto || loan.ornamentPhoto || loan.goldPhoto || "";
+    if (ornamentPhoto && (ornamentPhoto.startsWith("data:") || ornamentPhoto.length > 500)) {
+      try {
+        ornamentPhoto = await uploadPhotoToStorage(cleanBranch, 'loans', cleanId, 'ornamentPhoto', ornamentPhoto);
+        loanPayload.ornamentPhoto = ornamentPhoto;
+        if (loanPayload.goldPhoto) loanPayload.goldPhoto = ornamentPhoto;
+        loan.ornamentPhoto = ornamentPhoto;
+      } catch (e) {}
+    }
+
     const nowIso = new Date().toISOString();
     const branchName = loan.branchName || loan.branch || loanPayload.branchName || loanPayload.branch || branchInfo.branchName || ('Branch ' + cleanBranch);
     const timestampStr = loan.timestamp || (new Date().toLocaleString('en-IN'));
@@ -553,6 +661,9 @@
       amount: amount,
       loanAmount: amount,
       timestamp: timestampStr,
+      applicantPhoto: applicantPhoto,
+      customerPhoto: applicantPhoto,
+      ornamentPhoto: ornamentPhoto,
       payload: loanPayload,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAtIso: nowIso,
@@ -979,6 +1090,22 @@
     return unsub;
   }
 
+  function unsubscribe(key) {
+    if (activeSubscriptions[key] && typeof activeSubscriptions[key] === 'function') {
+      try { activeSubscriptions[key](); } catch (e) { }
+      delete activeSubscriptions[key];
+    }
+  }
+
+  function unsubscribeAll() {
+    Object.keys(activeSubscriptions).forEach(key => {
+      if (typeof activeSubscriptions[key] === 'function') {
+        try { activeSubscriptions[key](); } catch (e) { }
+      }
+    });
+    activeSubscriptions = {};
+  }
+
   // =========================================================================
   // PUBLIC API EXPORT
   // =========================================================================
@@ -995,6 +1122,8 @@
     subscribeToODLoans: subscribeToODLoans,
     subscribeToDeletedRecords: subscribeToDeletedRecords,
     subscribeToValuers: subscribeToValuers,
+    unsubscribe: unsubscribe,
+    unsubscribeAll: unsubscribeAll,
 
     // Writes
     saveFDForm: saveFDForm,

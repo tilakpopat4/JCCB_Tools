@@ -141,11 +141,24 @@ const FDApp = {
     this.startRealtimeCloudSync();
   },
 
+  unsubscribeFD: null,
+  unsubscribeDeletedFD: null,
+
   async startRealtimeCloudSync() {
+    // Clean up existing subscriptions before creating new ones
+    if (typeof this.unsubscribeFD === 'function') {
+      try { this.unsubscribeFD(); } catch (e) { }
+      this.unsubscribeFD = null;
+    }
+    if (typeof this.unsubscribeDeletedFD === 'function') {
+      try { this.unsubscribeDeletedFD(); } catch (e) { }
+      this.unsubscribeDeletedFD = null;
+    }
+
     // 1. Firebase Firestore Realtime Subscription (Push-based instant updates)
     if (window.FirebaseSync && typeof window.FirebaseSync.subscribeToFDForms === 'function') {
       try {
-        window.FirebaseSync.subscribeToFDForms((cloudForms) => {
+        const unsubFD = await window.FirebaseSync.subscribeToFDForms((cloudForms) => {
           let savedList = {};
           try {
             savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
@@ -172,9 +185,10 @@ const FDApp = {
             this.renderRegisterTable();
           }
         });
+        this.unsubscribeFD = typeof unsubFD === 'function' ? unsubFD : null;
 
         // Listen for cross-device deletions via Firestore
-        window.FirebaseSync.subscribeToDeletedRecords('fdForms', (deletedId) => {
+        const unsubDel = await window.FirebaseSync.subscribeToDeletedRecords('fdForms', (deletedId) => {
           let savedList = {};
           try {
             savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
@@ -188,6 +202,7 @@ const FDApp = {
             }
           }
         });
+        this.unsubscribeDeletedFD = typeof unsubDel === 'function' ? unsubDel : null;
       } catch (fbErr) {
         console.warn("[FD Realtime Sync] Firebase subscription notice:", fbErr);
       }

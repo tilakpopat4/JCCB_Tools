@@ -2,16 +2,25 @@ rules_version = '2';
 
 /**
  * The Junagadh Commercial Co-operative Bank Ltd. (TJCCB)
- * Gold Loan Module Cloud Storage Security Rules
+ * Unified Cloud Storage Security Rules
+ *
+ * Scopes:
+ * - Multi-Branch Isolation: Branches '01' through '18'
+ * - Head Office Super Admin bypass: Branch '99' or role 'admin' / 'superadmin'
+ * - Granular operations: read, create/update, delete
+ * - Strict 10MB payload and MIME type validation (Images and KYC PDFs only)
+ * - Immutability: Only Head Office Admin may delete audit storage objects
  */
 
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
 
+    // Head Office / Administrator authorization (No wildcard email bypass)
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.role == 'admin' ||
@@ -21,6 +30,7 @@ service firebase.storage {
       );
     }
 
+    // Branch membership check
     function isBranchMember(branchId) {
       return isAuthenticated() && (
         request.auth.token.branchCode == branchId ||
@@ -28,20 +38,27 @@ service firebase.storage {
       );
     }
 
+    // Combined branch accessibility
     function canAccessBranch(branchId) {
       return isAdmin() || isBranchMember(branchId);
     }
 
+    // Branch specific storage hierarchy: /branches/{branchId}/{module}/{recordId}/{fileName}
     match /branches/{branchId}/{allPaths=**} {
+      // 1. Allow read: Head Office / Admin or authenticated user belonging to the same branch
       allow read: if canAccessBranch(branchId);
 
+      // 2. Allow create, update: Head Office / Admin or authenticated user belonging to the same branch
+      // Enforces < 10MB file size and image / PDF MIME validation
       allow create, update: if canAccessBranch(branchId)
                             && request.resource.size < 10 * 1024 * 1024
                             && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
 
+      // 3. Allow delete: Head Office / Admin only (Branch users cannot delete audit photos)
       allow delete: if isAdmin();
     }
 
+    // Default fallback: Admin only for root administrative paths
     match /{allPaths=**} {
       allow read, write: if isAdmin();
     }

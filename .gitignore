@@ -10,6 +10,7 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 *.tmp
+*.zip
 .tempmediaStorage/
 scratch/
 .env
