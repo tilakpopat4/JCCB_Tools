@@ -404,9 +404,16 @@ const PostgresSync = (function () {
     }
   }
 
+  function isHeadOfficeQuery(branchCode) {
+    if (!branchCode && branchCode !== 0) return true;
+    const raw = String(branchCode).trim().toUpperCase();
+    const digits = raw.replace(/\D/g, '');
+    return !branchCode || digits === '99' || digits === '' || raw === 'ALL' || raw === 'HO' || raw === 'HEAD OFFICE' || raw.includes('HEAD OFFICE');
+  }
+
   async function fetchGoldLoans(branchCode = null) {
     try {
-      const isHO = !branchCode || branchCode === "99" || branchCode === "ALL" || branchCode === "ho";
+      const isHO = isHeadOfficeQuery(branchCode);
       let sql, params;
       if (isHO) {
         sql = "SELECT payload FROM jccb_gold_loans ORDER BY updated_at DESC;";
@@ -541,7 +548,7 @@ const PostgresSync = (function () {
 
   async function fetchFDForms(branchCode = null) {
     try {
-      const isHO = !branchCode || branchCode === "99" || branchCode === "ALL" || branchCode === "ho";
+      const isHO = isHeadOfficeQuery(branchCode);
       let sql, params;
       if (isHO) {
         sql = "SELECT payload FROM jccb_fd_forms ORDER BY updated_at DESC;";
@@ -612,7 +619,7 @@ const PostgresSync = (function () {
 
   async function fetchODLoans(branchCode = null) {
     try {
-      const isHO = !branchCode || branchCode === "99" || branchCode === "ALL" || branchCode === "ho";
+      const isHO = isHeadOfficeQuery(branchCode);
       let sql, params;
       if (isHO) {
         sql = "SELECT payload FROM jccb_od_loans ORDER BY updated_at DESC;";

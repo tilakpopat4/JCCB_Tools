@@ -796,8 +796,20 @@ const OverdraftApp = {
     const search = (document.getElementById('searchRegister')?.value || '').trim().toLowerCase();
     const filterBranch = (document.getElementById('filterBranch')?.value || '').trim().toLowerCase();
 
-    const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
-    const userBranch = String(this.currentSession ? this.currentSession.code : '99').padStart(2, '0');
+    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '99';
+    const sessionName = this.currentSession ? String(this.currentSession.name || '').toUpperCase() : 'HEAD OFFICE';
+    const sessionRole = this.currentSession ? String(this.currentSession.role || '').toUpperCase() : 'SUPER ADMIN';
+    const isHO = Boolean(
+      !this.currentSession ||
+      this.currentSession.isAdmin === true ||
+      sessionCode === '99' ||
+      sessionCode === '' ||
+      sessionRole.includes('ADMIN') ||
+      sessionRole.includes('SUPER') ||
+      sessionName.includes('HEAD OFFICE') ||
+      sessionName.includes('HO')
+    );
+    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '99';
 
     // Auto lock the branch filter in UI if not HO
     const filterBranchEl = document.getElementById('filterBranch');
@@ -814,17 +826,22 @@ const OverdraftApp = {
 
     const filtered = allRecords.filter(r => {
       const matchSearch = !search || 
-        (r.applicant1.name && r.applicant1.name.toLowerCase().includes(search)) ||
-        (r.applicant1.id && r.applicant1.id.toLowerCase().includes(search)) ||
+        (r.applicant1 && r.applicant1.name && r.applicant1.name.toLowerCase().includes(search)) ||
+        (r.applicant1 && r.applicant1.id && r.applicant1.id.toLowerCase().includes(search)) ||
         (r.savingAccNo && r.savingAccNo.toLowerCase().includes(search)) ||
         (r.fdReceipts && r.fdReceipts.some(f => f.certNo && f.certNo.toLowerCase().includes(search)));
 
       let matchBranch = true;
       const rBranch = String(r.branchCode || (r.branchName ? r.branchName.slice(0, 2) : '') || '').padStart(2, '0');
-      if (!isHO) {
+      if (isHO) {
+        // Head Office bypasses branch filtering: sees all records across all 18 branches unless specific branch selected
+        if (filterBranch && filterBranch !== 'all' && filterBranch !== '') {
+          matchBranch = (rBranch === filterBranch.padStart(2, '0') || (r.branchName && r.branchName.toLowerCase().includes(filterBranch)));
+        } else {
+          matchBranch = true;
+        }
+      } else {
         matchBranch = (rBranch === userBranch);
-      } else if (filterBranch) {
-        matchBranch = (rBranch === filterBranch.padStart(2, '0') || (r.branchName && r.branchName.toLowerCase().includes(filterBranch)));
       }
 
       return matchSearch && matchBranch;
@@ -884,8 +901,20 @@ const OverdraftApp = {
 
   // Update Report Metrics
   updateReportMetrics() {
-    const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
-    const userBranch = String(this.currentSession ? this.currentSession.code : '99').padStart(2, '0');
+    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '99';
+    const sessionName = this.currentSession ? String(this.currentSession.name || '').toUpperCase() : 'HEAD OFFICE';
+    const sessionRole = this.currentSession ? String(this.currentSession.role || '').toUpperCase() : 'SUPER ADMIN';
+    const isHO = Boolean(
+      !this.currentSession ||
+      this.currentSession.isAdmin === true ||
+      sessionCode === '99' ||
+      sessionCode === '' ||
+      sessionRole.includes('ADMIN') ||
+      sessionRole.includes('SUPER') ||
+      sessionName.includes('HEAD OFFICE') ||
+      sessionName.includes('HO')
+    );
+    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '99';
 
     let records = Object.values(this.getAllRecords());
     if (!isHO) {

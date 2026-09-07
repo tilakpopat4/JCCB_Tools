@@ -1610,25 +1610,40 @@ const FDApp = {
 
     this.updateRegisterBadgeCount();
 
-    const isHO = Boolean(this.currentSession && (this.currentSession.isAdmin || this.currentSession.code === '99' || this.currentSession.role === 'Super Admin'));
-    const userBranch = String(this.currentSession ? this.currentSession.code : '99').padStart(2, '0');
+    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '99';
+    const sessionName = this.currentSession ? String(this.currentSession.name || '').toUpperCase() : 'HEAD OFFICE';
+    const sessionRole = this.currentSession ? String(this.currentSession.role || '').toUpperCase() : 'SUPER ADMIN';
+    const isHO = Boolean(
+      !this.currentSession ||
+      this.currentSession.isAdmin === true ||
+      sessionCode === '99' ||
+      sessionCode === '' ||
+      sessionRole.includes('ADMIN') ||
+      sessionRole.includes('SUPER') ||
+      sessionName.includes('HEAD OFFICE') ||
+      sessionName.includes('HO')
+    );
+    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '99';
     const selectedBranchFilter = this.selectedRegisterBranch || (isHO ? 'ALL' : userBranch);
 
     // Sort entries by createdAt timestamp in descending order (Newest first)
     let sortedEntries = keys.map(k => savedList[k]).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-    // Branch Filtering logic
-    if (!isHO) {
+    // Branch Filtering logic:
+    // Head Office bypasses branch filter completely (100% of records from all 18 branches visible by default)
+    if (isHO) {
+      if (selectedBranchFilter && selectedBranchFilter !== 'ALL') {
+        sortedEntries = sortedEntries.filter(item => {
+          const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || '').padStart(2, '0');
+          return itemBranch === selectedBranchFilter;
+        });
+      }
+      // If selectedBranchFilter === 'ALL', no filtering is applied: HO sees 100% of all branches
+    } else {
       // Branch user can ONLY see their own branch's entries
       sortedEntries = sortedEntries.filter(item => {
         const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || '').padStart(2, '0');
         return itemBranch === userBranch;
-      });
-    } else if (selectedBranchFilter !== 'ALL') {
-      // Head office filtered by specific branch
-      sortedEntries = sortedEntries.filter(item => {
-        const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || '').padStart(2, '0');
-        return itemBranch === selectedBranchFilter;
       });
     }
 
