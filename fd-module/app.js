@@ -243,6 +243,21 @@ const FDApp = {
     pullCloudFD();
   },
 
+  isHeadOffice(session) {
+    const s = session || this.currentSession;
+    if (!s) return false;
+    const code = String(s.code || '').trim().replace(/\D/g, '');
+    if (code === '99') return true;
+    if (code && code !== '99') return false; // Any branch 01-18 is definitely NOT Head Office
+
+    if (s.isAdmin === true && (!code || code === '99')) return true;
+    const role = String(s.role || '').trim().toUpperCase();
+    if (role === 'SUPER ADMIN' || role === 'HEAD OFFICE ADMIN' || role === 'HO ADMIN') return true;
+    const name = String(s.name || '').trim().toUpperCase();
+    if (name.includes('HEAD OFFICE') || name.startsWith('99 ') || name === 'HO' || name.startsWith('HO -')) return true;
+    return false;
+  },
+
   setupSessionAndBranchLock() {
     let session = null;
     try {
@@ -309,7 +324,7 @@ const FDApp = {
     // 2. Sync Header Branch & Role Text
     const branchText = document.getElementById('user-branch-text');
     const roleBadge = document.getElementById('user-role-badge');
-    const isHO = Boolean(session.isAdmin || session.code === "99" || session.code === 99 || session.role === "Super Admin" || (session.name && session.name.toUpperCase().includes("HEAD OFFICE")));
+    const isHO = this.isHeadOffice(session);
     if (branchText) branchText.textContent = `${session.code || '99'} ${session.name || 'HEAD OFFICE'}`;
     if (roleBadge) roleBadge.textContent = isHO ? '👑 Super Admin' : '🏢 Branch User';
 
@@ -1641,24 +1656,17 @@ const FDApp = {
 
   updateRegisterBadgeCount() {
     const savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
-    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '99';
-    const isHO = Boolean(
-      !this.currentSession ||
-      this.currentSession.isAdmin === true ||
-      sessionCode === '99' ||
-      sessionCode === '' ||
-      (this.currentSession.role && String(this.currentSession.role).toUpperCase().includes('ADMIN')) ||
-      (this.currentSession.name && String(this.currentSession.name).toUpperCase().includes('HEAD OFFICE'))
-    );
+    const isHO = this.isHeadOffice(this.currentSession);
+    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '';
+    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '01';
 
     let count = 0;
     if (isHO) {
       count = Object.keys(savedList).length;
     } else {
-      const uBranch = sessionCode.padStart(2, '0');
       count = Object.values(savedList).filter(item => {
         const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || '').padStart(2, '0');
-        return itemBranch === uBranch;
+        return itemBranch === userBranch;
       }).length;
     }
 
@@ -1686,20 +1694,9 @@ const FDApp = {
 
     this.updateRegisterBadgeCount();
 
-    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '99';
-    const sessionName = this.currentSession ? String(this.currentSession.name || '').toUpperCase() : 'HEAD OFFICE';
-    const sessionRole = this.currentSession ? String(this.currentSession.role || '').toUpperCase() : 'SUPER ADMIN';
-    const isHO = Boolean(
-      !this.currentSession ||
-      this.currentSession.isAdmin === true ||
-      sessionCode === '99' ||
-      sessionCode === '' ||
-      sessionRole.includes('ADMIN') ||
-      sessionRole.includes('SUPER') ||
-      sessionName.includes('HEAD OFFICE') ||
-      sessionName.includes('HO')
-    );
-    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '99';
+    const isHO = this.isHeadOffice(this.currentSession);
+    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '';
+    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '01';
     const selectedBranchFilter = this.selectedRegisterBranch || (isHO ? 'ALL' : userBranch);
 
     // Sort entries by updatedAt / createdAt timestamp in descending order (Newest first)

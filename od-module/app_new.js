@@ -250,6 +250,21 @@ const OverdraftApp = {
     pullCloudOD();
   },
 
+  isHeadOffice(session) {
+    const s = session || this.currentSession;
+    if (!s) return false;
+    const code = String(s.code || '').trim().replace(/\D/g, '');
+    if (code === '99') return true;
+    if (code && code !== '99') return false; // Any branch 01-18 is definitely NOT Head Office
+
+    if (s.isAdmin === true && (!code || code === '99')) return true;
+    const role = String(s.role || '').trim().toUpperCase();
+    if (role === 'SUPER ADMIN' || role === 'HEAD OFFICE ADMIN' || role === 'HO ADMIN') return true;
+    const name = String(s.name || '').trim().toUpperCase();
+    if (name.includes('HEAD OFFICE') || name.startsWith('99 ') || name === 'HO' || name.startsWith('HO -')) return true;
+    return false;
+  },
+
   setupSessionAndBranchLock() {
     let session = null;
     try {
@@ -296,7 +311,7 @@ const OverdraftApp = {
         branchSelect.value = matchedVal;
       }
 
-      const isHO = Boolean(session.isAdmin || session.code === "99" || session.code === 99 || session.role === "Super Admin" || (session.name && session.name.toUpperCase().includes("HEAD OFFICE")));
+      const isHO = this.isHeadOffice(session);
       
       if (!isHO) {
         branchSelect.disabled = true;
@@ -326,7 +341,7 @@ const OverdraftApp = {
     // 2. Sync Header Branch & Role Text
     const branchText = document.getElementById('user-branch-text');
     const roleBadge = document.getElementById('user-role-badge');
-    const isHO = Boolean(session.isAdmin || session.code === "99" || session.code === 99 || session.role === "Super Admin" || (session.name && session.name.toUpperCase().includes("HEAD OFFICE")));
+    const isHO = this.isHeadOffice(session);
     if (branchText) branchText.textContent = `${session.code || '99'} ${session.name || 'HEAD OFFICE'}`;
     if (roleBadge) roleBadge.textContent = isHO ? '👑 Super Admin' : '🏢 Branch User';
 
@@ -852,20 +867,9 @@ const OverdraftApp = {
     const search = (document.getElementById('searchRegister')?.value || '').trim().toLowerCase();
     const filterBranch = (document.getElementById('filterBranch')?.value || '').trim().toLowerCase();
 
-    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '99';
-    const sessionName = this.currentSession ? String(this.currentSession.name || '').toUpperCase() : 'HEAD OFFICE';
-    const sessionRole = this.currentSession ? String(this.currentSession.role || '').toUpperCase() : 'SUPER ADMIN';
-    const isHO = Boolean(
-      !this.currentSession ||
-      this.currentSession.isAdmin === true ||
-      sessionCode === '99' ||
-      sessionCode === '' ||
-      sessionRole.includes('ADMIN') ||
-      sessionRole.includes('SUPER') ||
-      sessionName.includes('HEAD OFFICE') ||
-      sessionName.includes('HO')
-    );
-    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '99';
+    const isHO = this.isHeadOffice(this.currentSession);
+    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '';
+    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '01';
 
     // Auto lock the branch filter in UI if not HO
     const filterBranchEl = document.getElementById('filterBranch');
@@ -956,21 +960,9 @@ const OverdraftApp = {
   },
 
   // Update Report Metrics
-  updateReportMetrics() {
-    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '99';
-    const sessionName = this.currentSession ? String(this.currentSession.name || '').toUpperCase() : 'HEAD OFFICE';
-    const sessionRole = this.currentSession ? String(this.currentSession.role || '').toUpperCase() : 'SUPER ADMIN';
-    const isHO = Boolean(
-      !this.currentSession ||
-      this.currentSession.isAdmin === true ||
-      sessionCode === '99' ||
-      sessionCode === '' ||
-      sessionRole.includes('ADMIN') ||
-      sessionRole.includes('SUPER') ||
-      sessionName.includes('HEAD OFFICE') ||
-      sessionName.includes('HO')
-    );
-    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '99';
+    const isHO = this.isHeadOffice(this.currentSession);
+    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '';
+    const userBranch = sessionCode ? sessionCode.padStart(2, '0') : '01';
 
     let records = Object.values(this.getAllRecords());
     if (!isHO) {

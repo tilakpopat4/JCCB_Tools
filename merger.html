@@ -675,7 +675,8 @@
     }
 
     if (currentSession) {
-      const isHO = Boolean(currentSession.isAdmin || currentSession.code === "99" || currentSession.code === 99 || currentSession.role === "Super Admin" || (currentSession.name && currentSession.name.toUpperCase().includes("HEAD OFFICE")));
+      const codeStr = String(currentSession.code || '').trim().replace(/\D/g, '');
+      const isHO = (codeStr === '99') || (currentSession.isAdmin === true && (codeStr === '99' || !codeStr)) || (currentSession.name && currentSession.name.toUpperCase().includes('HEAD OFFICE'));
       const branchText = document.getElementById('user-branch-text');
       const roleBadge = document.getElementById('user-role-badge');
       const backupSection = document.getElementById('central-backup-section');
