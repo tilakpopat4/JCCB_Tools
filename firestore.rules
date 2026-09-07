@@ -74,7 +74,8 @@ service cloud.firestore {
 
       allow update: if isSignedIn()
                     && canAccessBranch(resource.data.branchCode)
-                    && branchCodeUnchanged();
+                    && branchCodeUnchanged()
+                    && request.resource.data.payload is map;
 
       allow delete: if isSignedIn() && canAccessBranch(resource.data.branchCode);
     }
@@ -92,7 +93,8 @@ service cloud.firestore {
 
       allow update: if isSignedIn()
                     && canAccessBranch(resource.data.branchCode)
-                    && branchCodeUnchanged();
+                    && branchCodeUnchanged()
+                    && request.resource.data.payload is map;
 
       allow delete: if isSignedIn() && canAccessBranch(resource.data.branchCode);
     }
@@ -110,7 +112,8 @@ service cloud.firestore {
 
       allow update: if isSignedIn()
                     && canAccessBranch(resource.data.branchCode)
-                    && branchCodeUnchanged();
+                    && branchCodeUnchanged()
+                    && request.resource.data.payload is map;
 
       allow delete: if isSignedIn() && canAccessBranch(resource.data.branchCode);
     }
@@ -168,20 +171,36 @@ service cloud.firestore {
       allow update, delete: if false; // immutable audit log
     }
 
-    // Fallback for backward compatibility with legacy collections
+    // ------------------------------------------------------------------
+    // Legacy /loans and /deleted_loans — strictly branch-scoped fallback
+    // ------------------------------------------------------------------
     match /loans/{loanId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn() && canAccessBranch(resource.data.branchCode);
+      allow create: if isSignedIn()
+                    && isValidBranchCode(request.resource.data.branchCode)
+                    && canAccessBranch(request.resource.data.branchCode)
+                    && request.resource.data.payload is map;
+      allow update: if isSignedIn()
+                    && canAccessBranch(resource.data.branchCode)
+                    && branchCodeUnchanged()
+                    && request.resource.data.payload is map;
+      allow delete: if isSignedIn() && canAccessBranch(resource.data.branchCode);
     }
+
+    match /deleted_loans/{delId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && canAccessBranch(request.resource.data.branchCode);
+      allow update, delete: if false;
+    }
+
     match /rates/{dateStr} {
       allow read: if isSignedIn();
       allow write: if isHeadOffice();
     }
+
     match /settings/{settingKey} {
       allow read: if isSignedIn();
       allow write: if isHeadOffice();
-    }
-    match /deleted_loans/{delId} {
-      allow read, write: if isSignedIn();
     }
 
     // ------------------------------------------------------------------
