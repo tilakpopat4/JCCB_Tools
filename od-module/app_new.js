@@ -159,7 +159,10 @@ const OverdraftApp = {
       if (window.PostgresSync && window.PostgresSync.fetchODLoans) {
         try {
           const [cloudLoans, deletedIds] = await Promise.all([
-            window.PostgresSync.fetchODLoans().catch(() => []),
+            window.PostgresSync.fetchODLoans().catch(err => {
+              console.error("[OD Sync] Error fetching OD loans from Neon:", err);
+              return [];
+            }),
             (window.PostgresSync.fetchDeletedRecordIds ? window.PostgresSync.fetchDeletedRecordIds('od') : Promise.resolve([])).catch(() => [])
           ]);
 
@@ -176,7 +179,7 @@ const OverdraftApp = {
           });
 
           // 2. Merge cloud records
-          if (Array.isArray(cloudLoans)) {
+          if (Array.isArray(cloudLoans) && cloudLoans.length > 0) {
             cloudLoans.forEach(item => {
               if (item && item.id && !deletedSet.has(String(item.id))) {
                 const local = allRecords[item.id];
@@ -201,7 +204,7 @@ const OverdraftApp = {
             });
           }
 
-          if (changed) {
+          if (changed || Object.keys(allRecords).length > 0) {
             localStorage.setItem('tjccb_od_loans', JSON.stringify(allRecords));
             this.updateRegisterTable();
             this.updateReportMetrics();
@@ -211,6 +214,7 @@ const OverdraftApp = {
         }
       }
     };
+    this.pullCloudOD = pullCloudOD;
     pullCloudOD();
     setInterval(pullCloudOD, 10000);
   },

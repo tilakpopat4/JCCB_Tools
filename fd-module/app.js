@@ -146,7 +146,10 @@ const FDApp = {
       if (window.PostgresSync && window.PostgresSync.fetchFDForms) {
         try {
           const [cloudForms, deletedIds] = await Promise.all([
-            window.PostgresSync.fetchFDForms().catch(() => []),
+            window.PostgresSync.fetchFDForms().catch(err => {
+              console.error("[FD Sync] Error fetching FD forms from Neon:", err);
+              return [];
+            }),
             (window.PostgresSync.fetchDeletedRecordIds ? window.PostgresSync.fetchDeletedRecordIds('fd') : Promise.resolve([])).catch(() => [])
           ]);
 
@@ -167,7 +170,7 @@ const FDApp = {
           });
 
           // 2. Merge cloud forms (non-destructive smart update)
-          if (Array.isArray(cloudForms)) {
+          if (Array.isArray(cloudForms) && cloudForms.length > 0) {
             cloudForms.forEach(item => {
               if (item && item.id && !deletedSet.has(String(item.id))) {
                 const local = savedList[item.id];
@@ -192,10 +195,10 @@ const FDApp = {
             });
           }
 
-          if (changed) {
+          if (changed || Object.keys(savedList).length > 0) {
             localStorage.setItem('tjccb_fd_forms', JSON.stringify(savedList));
             this.updateRegisterBadgeCount();
-            if (typeof this.renderRegisterTable === 'function') {
+            if (typeof this.renderRegisterTable === 'function' && this.currentView === 'register') {
               this.renderRegisterTable();
             }
           }
@@ -204,6 +207,7 @@ const FDApp = {
         }
       }
     };
+    this.pullCloudFD = pullCloudFD;
     pullCloudFD();
     setInterval(pullCloudFD, 10000);
   },
@@ -363,6 +367,9 @@ const FDApp = {
     } else if (viewName === 'register') {
       document.getElementById('registerView').style.display = 'block';
       this.renderRegisterTable();
+      if (typeof this.pullCloudFD === 'function') {
+        this.pullCloudFD();
+      }
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1585,7 +1592,27 @@ const FDApp = {
 
   updateRegisterBadgeCount() {
     const savedList = JSON.parse(localStorage.getItem('tjccb_fd_forms') || '{}');
-    const count = Object.keys(savedList).length;
+    const sessionCode = this.currentSession ? String(this.currentSession.code || '').trim().replace(/\D/g, '') : '99';
+    const isHO = Boolean(
+      !this.currentSession ||
+      this.currentSession.isAdmin === true ||
+      sessionCode === '99' ||
+      sessionCode === '' ||
+      (this.currentSession.role && String(this.currentSession.role).toUpperCase().includes('ADMIN')) ||
+      (this.currentSession.name && String(this.currentSession.name).toUpperCase().includes('HEAD OFFICE'))
+    );
+
+    let count = 0;
+    if (isHO) {
+      count = Object.keys(savedList).length;
+    } else {
+      const uBranch = sessionCode.padStart(2, '0');
+      count = Object.values(savedList).filter(item => {
+        const itemBranch = String(item.branchCode || (item.data && item.data.branchCode) || '').padStart(2, '0');
+        return itemBranch === uBranch;
+      }).length;
+    }
+
     const badge = document.getElementById('registerCountBadge');
     if (badge) badge.innerText = count;
   },

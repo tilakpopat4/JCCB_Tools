@@ -423,10 +423,19 @@ const PostgresSync = (function () {
         sql = "SELECT payload FROM jccb_gold_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
         params = [bCode];
       }
+      console.log(`⚡ [PostgresSync] fetchGoldLoans query: "${sql}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
       const res = await runNeonQuery(sql, params);
-      return (res && res.rows) ? res.rows.map(r => r.payload || r) : [];
+      const rows = (res && res.rows) ? res.rows.map(r => {
+        let payload = r.payload || r;
+        if (typeof payload === 'string') {
+          try { payload = JSON.parse(payload); } catch(e) {}
+        }
+        return payload;
+      }) : [];
+      console.log(`✅ [PostgresSync] fetchGoldLoans returned ${rows.length} records from Neon`);
+      return rows;
     } catch (e) {
-      console.warn("[PostgresSync] Fetch gold loans error:", e);
+      console.error("❌ [PostgresSync] Fetch gold loans error:", e);
       return [];
     }
   }
@@ -558,10 +567,19 @@ const PostgresSync = (function () {
         sql = "SELECT payload FROM jccb_fd_forms WHERE branch_code = $1 ORDER BY updated_at DESC;";
         params = [bCode];
       }
+      console.log(`⚡ [PostgresSync] fetchFDForms query: "${sql}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
       const res = await runNeonQuery(sql, params);
-      return (res && res.rows) ? res.rows.map(r => r.payload || r) : [];
+      const rows = (res && res.rows) ? res.rows.map(r => {
+        let payload = r.payload || r;
+        if (typeof payload === 'string') {
+          try { payload = JSON.parse(payload); } catch(e) {}
+        }
+        return payload;
+      }) : [];
+      console.log(`✅ [PostgresSync] fetchFDForms returned ${rows.length} records from Neon`);
+      return rows;
     } catch (e) {
-      console.warn("[PostgresSync] Fetch FD forms error:", e);
+      console.error("❌ [PostgresSync] Fetch FD forms error:", e);
       return [];
     }
   }
@@ -629,10 +647,19 @@ const PostgresSync = (function () {
         sql = "SELECT payload FROM jccb_od_loans WHERE branch_code = $1 ORDER BY updated_at DESC;";
         params = [bCode];
       }
+      console.log(`⚡ [PostgresSync] fetchODLoans query: "${sql}" (params: ${JSON.stringify(params)}, isHO: ${isHO})`);
       const res = await runNeonQuery(sql, params);
-      return (res && res.rows) ? res.rows.map(r => r.payload || r) : [];
+      const rows = (res && res.rows) ? res.rows.map(r => {
+        let payload = r.payload || r;
+        if (typeof payload === 'string') {
+          try { payload = JSON.parse(payload); } catch(e) {}
+        }
+        return payload;
+      }) : [];
+      console.log(`✅ [PostgresSync] fetchODLoans returned ${rows.length} records from Neon`);
+      return rows;
     } catch (e) {
-      console.warn("[PostgresSync] Fetch OD loans error:", e);
+      console.error("❌ [PostgresSync] Fetch OD loans error:", e);
       return [];
     }
   }
