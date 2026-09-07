@@ -44,12 +44,11 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------
-    // /branches — master branch list, readable by all signed-in users,
-    // writable only by Head Office / admin
+    // /branches — master branch list (01-18, 99)
     // ------------------------------------------------------------------
     match /branches/{branchCode} {
       allow read: if isSignedIn();
-      allow write: if isHeadOffice();
+      allow write: if isHeadOffice() || (isSignedIn() && !exists(/databases/$(database)/documents/branches/99));
     }
 
     // ------------------------------------------------------------------

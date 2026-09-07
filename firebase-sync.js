@@ -707,21 +707,47 @@
     } catch (e) { }
   }
 
+  const DEFAULT_JCCB_BRANCHES = [
+    { code: "99", branchCode: "99", name: "99 HEAD OFFICE", shortName: "HO", branchNameGuj: "૯૯ હેડ ઓફિસ (મુખ્ય કચેરી)", role: "admin", isHeadOffice: true },
+    { code: "01", branchCode: "01", name: "01 AZADCHOWK BRANCH", shortName: "CBB", branchNameGuj: "૦૧ આઝાદચોક શાખા", role: "branch", isHeadOffice: false },
+    { code: "02", branchCode: "02", name: "02 JOSHIPARA BRANCH", shortName: "JPB", branchNameGuj: "૦૨ જોશીપરા શાખા", role: "branch", isHeadOffice: false },
+    { code: "03", branchCode: "03", name: "03 DOLATPARA BRANCH", shortName: "DPB", branchNameGuj: "૦૩ દોલતપરા શાખા", role: "branch", isHeadOffice: false },
+    { code: "04", branchCode: "04", name: "04 KODINAR BRANCH", shortName: "KDR", branchNameGuj: "૦૪ કોડીનાર શાખા", role: "branch", isHeadOffice: false },
+    { code: "05", branchCode: "05", name: "05 KESHOD BRANCH", shortName: "KSD", branchNameGuj: "૦૫ કેશોદ શાખા", role: "branch", isHeadOffice: false },
+    { code: "06", branchCode: "06", name: "06 VANTHALI BRANCH", shortName: "VTL", branchNameGuj: "૦૬ વંથલી શાખા", role: "branch", isHeadOffice: false },
+    { code: "07", branchCode: "07", name: "07 MANAVADAR BRANCH", shortName: "MNV", branchNameGuj: "૦૭ માણાવદર શાખા", role: "branch", isHeadOffice: false },
+    { code: "08", branchCode: "08", name: "08 GANDHINAGAR BRANCH", shortName: "GNB", branchNameGuj: "૦૮ ગાંધીનગર શાખા", role: "branch", isHeadOffice: false },
+    { code: "09", branchCode: "09", name: "09 LIMBDI BRANCH", shortName: "LIM", branchNameGuj: "૦૯ લીંબડી શાખા", role: "branch", isHeadOffice: false },
+    { code: "10", branchCode: "10", name: "10 MENDARDA BRANCH", shortName: "MND", branchNameGuj: "૧૦ મેંદરડા શાખા", role: "branch", isHeadOffice: false },
+    { code: "11", branchCode: "11", name: "11 VISAVADAR BRANCH", shortName: "VIS", branchNameGuj: "૧૧ વિસાવદર શાખા", role: "branch", isHeadOffice: false },
+    { code: "12", branchCode: "12", name: "12 JAMNAGAR BRANCH", shortName: "JAM", branchNameGuj: "૧૨ જામનગર શાખા", role: "branch", isHeadOffice: false },
+    { code: "13", branchCode: "13", name: "13 BUS STAND BRANCH", shortName: "STB", branchNameGuj: "૧૩ બસ સ્ટેન્ડ શાખા", role: "branch", isHeadOffice: false },
+    { code: "14", branchCode: "14", name: "14 LATHI BRANCH", shortName: "LTH", branchNameGuj: "૧૪ લાઠી શાખા", role: "branch", isHeadOffice: false },
+    { code: "16", branchCode: "16", name: "16 AHMEDABAD BRANCH", shortName: "AHM", branchNameGuj: "૧૬ અમદાવાદ શાખા", role: "branch", isHeadOffice: false },
+    { code: "17", branchCode: "17", name: "17 RAJKOT BRANCH", shortName: "RJT", branchNameGuj: "૧૭ રાજકોટ શાખા", role: "branch", isHeadOffice: false },
+    { code: "18", branchCode: "18", name: "18 ZANZARDA BRANCH", shortName: "ZAN", branchNameGuj: "૧૮ ઝાંઝરડા શાખા", role: "branch", isHeadOffice: false }
+  ];
+
   /**
-   * Fetch master branches list from /branches
+   * Fetch master branches list from /branches (auto-seeds default branches on first run)
    */
   async function getBranches() {
     await init();
-    if (!db) return [];
+    if (!db) return DEFAULT_JCCB_BRANCHES;
     try {
       const snap = await db.collection('branches').get();
       const list = [];
       snap.forEach(doc => {
         list.push({ branchCode: doc.id, ...doc.data() });
       });
+      if (list.length === 0) {
+        console.log("⚡ [FirebaseSync] Seeding 18 Branches and Head Office to Firestore /branches...");
+        saveBranches(DEFAULT_JCCB_BRANCHES).catch(() => {});
+        return DEFAULT_JCCB_BRANCHES;
+      }
       return list;
     } catch (e) {
-      return [];
+      return DEFAULT_JCCB_BRANCHES;
     }
   }
 
@@ -739,11 +765,15 @@
         branchCode: code,
         name: b.name || b.branchName || `Branch ${code}`,
         shortName: b.shortName || code,
+        branchNameGuj: b.branchNameGuj || '',
+        role: b.role || (code === '99' ? 'admin' : 'branch'),
+        isHeadOffice: code === '99',
         isActive: b.isActive !== false,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
     });
     await batch.commit();
+    console.log("✅ [FirebaseSync] All 18 branches + Head Office successfully saved to /branches in Firestore!");
   }
 
   // =========================================================================

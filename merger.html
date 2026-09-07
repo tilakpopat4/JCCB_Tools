@@ -565,6 +565,9 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      if (window.FirebaseSync && typeof window.FirebaseSync.getBranches === 'function') {
+        window.FirebaseSync.getBranches().catch(() => {});
+      }
       initRealtimeFirebaseStats();
       updateLauncherStats();
     });
