@@ -538,43 +538,126 @@ async function syncFromIndexedDBOnInit() {
         const idbState = await loadStateFromIndexedDB();
         if (idbState && typeof idbState === "object") {
             let updated = false;
-            if (Array.isArray(idbState.loans) && idbState.loans.length > 0) {
-                // If IndexedDB has loans with photos or more recent loans, merge them
-                const idbMap = new Map();
-                idbState.loans.forEach(l => { if (l && l.id) idbMap.set(l.id, l); });
 
-                if (Array.isArray(state.loans)) {
-                    state.loans = state.loans.map(l => {
-                        const idbLoan = idbMap.get(l.id);
+            // 1. Loans: merge IndexedDB full collection
+            if (Array.isArray(idbState.loans) && idbState.loans.length > 0) {
+                const mergedMap = new Map();
+                // Load all loans from IndexedDB first
+                idbState.loans.forEach(l => {
+                    if (l && (l.id || l.loanId || l.proposalNo)) {
+                        mergedMap.set(String(l.id || l.loanId || l.proposalNo).trim(), l);
+                    }
+                });
+                // Merge with any in-memory state loans
+                (state.loans || []).forEach(l => {
+                    if (l && (l.id || l.loanId || l.proposalNo)) {
+                        const id = String(l.id || l.loanId || l.proposalNo).trim();
+                        const idbLoan = mergedMap.get(id);
                         if (idbLoan) {
-                            return {
+                            mergedMap.set(id, {
                                 ...idbLoan,
                                 ...l,
                                 applicantPhoto: idbLoan.applicantPhoto || l.applicantPhoto || "",
                                 ornamentPhoto: idbLoan.ornamentPhoto || l.ornamentPhoto || "",
                                 customerPhoto: idbLoan.customerPhoto || l.customerPhoto || ""
-                            };
+                            });
+                        } else {
+                            mergedMap.set(id, l);
                         }
-                        return l;
-                    });
-                } else {
-                    state.loans = idbState.loans;
-                }
+                    }
+                });
+                state.loans = Array.from(mergedMap.values());
                 updated = true;
             }
 
+            // 2. Customers
             if (Array.isArray(idbState.customers) && idbState.customers.length > 0) {
-                if (!Array.isArray(state.customers) || state.customers.length === 0) {
-                    state.customers = idbState.customers;
-                    updated = true;
-                }
+                const custMap = new Map();
+                idbState.customers.forEach(c => {
+                    if (c && (c.id || c.customerNo)) custMap.set(String(c.customerNo || c.id).trim(), c);
+                });
+                (state.customers || []).forEach(c => {
+                    if (c && (c.id || c.customerNo)) {
+                        const id = String(c.customerNo || c.id).trim();
+                        const existing = custMap.get(id);
+                        custMap.set(id, existing ? { ...existing, ...c } : c);
+                    }
+                });
+                state.customers = Array.from(custMap.values());
+                updated = true;
+            }
+
+            // 3. Valuers
+            if (Array.isArray(idbState.valuers) && idbState.valuers.length > 0) {
+                const valMap = new Map();
+                idbState.valuers.forEach(v => {
+                    if (v && (v.id || v.name)) valMap.set(String(v.id || v.name).trim(), v);
+                });
+                (state.valuers || []).forEach(v => {
+                    if (v && (v.id || v.name)) {
+                        const id = String(v.id || v.name).trim();
+                        const existing = valMap.get(id);
+                        valMap.set(id, existing ? { ...existing, ...v } : v);
+                    }
+                });
+                state.valuers = Array.from(valMap.values());
+                updated = true;
+            }
+
+            // 4. Branches
+            if (Array.isArray(idbState.branches) && idbState.branches.length > 0) {
+                state.branches = idbState.branches;
+                updated = true;
+            }
+
+            // 5. Products
+            if (Array.isArray(idbState.products) && idbState.products.length > 0) {
+                state.products = idbState.products;
+                updated = true;
+            }
+
+            // 6. Rules
+            if (idbState.rules && idbState.rules.membership) {
+                state.rules = { ...state.rules, ...idbState.rules };
+                updated = true;
+            }
+
+            // 7. Gold Rates & Rate History
+            if (idbState.goldRates && (parseFloat(idbState.goldRates["22K"]) > 0 || parseFloat(idbState.goldRates["24K"]) > 0)) {
+                state.goldRates = { ...state.goldRates, ...idbState.goldRates };
+                updated = true;
+            }
+            if (Array.isArray(idbState.rateHistory) && idbState.rateHistory.length > 0) {
+                state.rateHistory = idbState.rateHistory;
+                updated = true;
+            }
+
+            // 8. Settings
+            if (idbState.settings) {
+                state.settings = { ...state.settings, ...idbState.settings };
+                updated = true;
+            }
+
+            // 9. Deleted Loan IDs
+            if (Array.isArray(idbState.deletedLoanIds)) {
+                const activeIds = new Set((state.loans || []).map(l => String(l.id || l.loanId || "").trim()).filter(Boolean));
+                state.deletedLoanIds = (idbState.deletedLoanIds || []).filter(id => !activeIds.has(String(id).trim()));
+                updated = true;
             }
 
             if (updated) {
-                console.log("[IndexedDB] Synced high-res assets & data from IndexedDB successfully.");
-                if (typeof renderRegisterTable === "function") {
-                    try { renderRegisterTable(); } catch (e) { }
-                }
+                console.log(`[IndexedDB] Synced state from IndexedDB successfully: ${(state.loans || []).length} loans.`);
+                saveState();
+                if (typeof renderDashboard === "function") try { renderDashboard(); } catch (e) { }
+                if (typeof renderLoansTable === "function") try { renderLoansTable(); } catch (e) { }
+                if (typeof renderRegisterTable === "function") try { renderRegisterTable(); } catch (e) { }
+                if (typeof renderCustomerMasterList === "function") try { renderCustomerMasterList(); } catch (e) { }
+                if (typeof renderValuers === "function") try { renderValuers(); } catch (e) { }
+                if (typeof renderProductMaster === "function") try { renderProductMaster(); } catch (e) { }
+                if (typeof renderBranchMaster === "function") try { renderBranchMaster(); } catch (e) { }
+                if (typeof renderRulesMaster === "function") try { renderRulesMaster(); } catch (e) { }
+                if (typeof updateHeaderGoldRate === "function") try { updateHeaderGoldRate(); } catch (e) { }
+                if (typeof updateBackupStats === "function") try { updateBackupStats(); } catch (e) { }
             }
         }
     } catch (e) {
@@ -727,12 +810,16 @@ function saveState() {
 }
 
 // ==================== APPLICATION INIT ====================
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     const safeRun = (fn, name) => {
         try { if (typeof fn === "function") fn(); } catch (e) { console.warn(`[Init] Error in ${name}:`, e); }
     };
 
-    safeRun(syncFromIndexedDBOnInit, "syncFromIndexedDBOnInit");
+    try {
+        await syncFromIndexedDBOnInit();
+    } catch (e) {
+        console.warn("[Init] syncFromIndexedDBOnInit error:", e);
+    }
     safeRun(initClock, "initClock");
     safeRun(initGlobalUppercaseEnforcer, "initGlobalUppercaseEnforcer");
     safeRun(initAuth, "initAuth");

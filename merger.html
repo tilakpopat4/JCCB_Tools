@@ -528,37 +528,42 @@
           initRealtimeFirebaseStats();
         }
 
-        if (window.PostgresSync && window.PostgresSync.fetchAllHeadOfficeData) {
-          const cloudData = await window.PostgresSync.fetchAllHeadOfficeData();
-          if (cloudData) {
-            const gBadge = document.getElementById('gold-records-count');
-            if (gBadge && Array.isArray(cloudData.goldLoans)) gBadge.textContent = `${cloudData.goldLoans.length} Loans`;
+        let goldCount = 0;
+        let fdCount = 0;
+        let odCount = 0;
 
-            const fdBadge = document.getElementById('fd-records-count');
-            if (fdBadge && cloudData.fdForms) fdBadge.textContent = `${Object.keys(cloudData.fdForms).length} Accounts`;
-
-            const odBadge = document.getElementById('od-records-count');
-            if (odBadge && cloudData.odLoans) odBadge.textContent = `${Object.keys(cloudData.odLoans).length} Loans`;
-            return;
-          }
-        }
-
+        // 1. Read from CentralBackup local stores
         if (window.CentralBackup) {
           const gState = await CentralBackup.getGoldState();
-          const gCount = (gState.loans || []).length;
-          const gBadge = document.getElementById('gold-records-count');
-          if (gBadge) gBadge.textContent = `${gCount} Loans`;
+          goldCount = Math.max(goldCount, (gState.loans || []).length);
 
           const fdForms = CentralBackup.getFDForms();
-          const fdCount = Object.keys(fdForms).length;
-          const fdBadge = document.getElementById('fd-records-count');
-          if (fdBadge) fdBadge.textContent = `${fdCount} Accounts`;
+          fdCount = Math.max(fdCount, Object.keys(fdForms || {}).length);
 
           const odLoans = CentralBackup.getODLoans();
-          const odCount = Object.keys(odLoans).length;
-          const odBadge = document.getElementById('od-records-count');
-          if (odBadge) odBadge.textContent = `${odCount} Loans`;
+          odCount = Math.max(odCount, Object.keys(odLoans || {}).length);
         }
+
+        // 2. Merge with Postgres Cloud Data
+        if (window.PostgresSync && window.PostgresSync.fetchAllHeadOfficeData) {
+          try {
+            const cloudData = await window.PostgresSync.fetchAllHeadOfficeData();
+            if (cloudData) {
+              if (Array.isArray(cloudData.goldLoans)) goldCount = Math.max(goldCount, cloudData.goldLoans.length);
+              if (cloudData.fdForms) fdCount = Math.max(fdCount, Object.keys(cloudData.fdForms).length);
+              if (cloudData.odLoans) odCount = Math.max(odCount, Object.keys(cloudData.odLoans).length);
+            }
+          } catch (e) { }
+        }
+
+        const gBadge = document.getElementById('gold-records-count');
+        if (gBadge) gBadge.textContent = `${goldCount} Loans`;
+
+        const fdBadge = document.getElementById('fd-records-count');
+        if (fdBadge) fdBadge.textContent = `${fdCount} Accounts`;
+
+        const odBadge = document.getElementById('od-records-count');
+        if (odBadge) odBadge.textContent = `${odCount} Loans`;
       } catch (e) {
         console.warn("Stats update warning:", e);
       }
