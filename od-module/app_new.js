@@ -922,23 +922,33 @@ const OverdraftApp = {
       return;
     }
 
-    tbody.innerHTML = filtered.map((r, i) => `
+    tbody.innerHTML = filtered.map((r, i) => {
+      const appName = (r.applicant1 && r.applicant1.name) || r.customerName || 'UNNAMED';
+      const appId = (r.applicant1 && r.applicant1.id) || r.customerId || 'N/A';
+      const savingAcc = r.savingAccNo || (r.data && r.data.savingAccNo) || '-';
+      const bName = r.branchName || r.branch || (r.data && (r.data.branchName || r.data.branch)) || (r.branchCode ? ('Branch ' + r.branchCode) : 'HEAD OFFICE');
+      const loanAmt = parseFloat(r.loanAmount || r.amount || 0);
+      const roiVal = r.interestRate || r.roi || '-';
+      const receiptCount = r.fdReceipts ? r.fdReceipts.length : ((r.data && r.data.fdReceipts) ? r.data.fdReceipts.length : 0);
+      const dateStr = r.loanDate ? r.loanDate.split('-').reverse().join('/') : (r.timestamp || (r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('en-IN') : '-'));
+
+      return `
       <tr class="border-b border-slate-200 hover:bg-blue-50/40 transition text-xs">
         <td class="p-3 text-center font-bold text-slate-500">${i + 1}</td>
         <td class="p-3 font-mono font-bold text-blue-900">${r.id}</td>
-        <td class="p-3 font-mono font-bold text-slate-600">${r.loanDate ? r.loanDate.split('-').reverse().join('/') : '-'}</td>
+        <td class="p-3 font-mono font-bold text-slate-600">${dateStr}</td>
         <td class="p-3">
-          <div class="font-black text-blue-950">${r.applicant1.name}</div>
-          <div class="text-[10px] text-slate-500 font-semibold">ID: ${r.applicant1.id || 'N/A'} • A/c: ${r.savingAccNo}</div>
+          <div class="font-black text-blue-950">${appName}</div>
+          <div class="text-[10px] text-slate-500 font-semibold">ID: ${appId} • A/c: ${savingAcc}</div>
         </td>
-        <td class="p-3 text-xs font-bold text-slate-700">${r.branchName}</td>
+        <td class="p-3 text-xs font-bold text-slate-700">${bName}</td>
         <td class="p-3 text-right font-black text-emerald-800 text-sm">
-          ₹ ${r.loanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          <div class="text-[10px] text-slate-500 font-bold">ROI: ${r.interestRate}%</div>
+          ₹ ${loanAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          <div class="text-[10px] text-slate-500 font-bold">ROI: ${roiVal}%</div>
         </td>
         <td class="p-3 text-center">
           <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 font-black text-[11px] border border-blue-200">
-            ${r.fdReceipts ? r.fdReceipts.length : 0} Receipts
+            ${receiptCount} Receipts
           </span>
         </td>
         <td class="p-3 text-center">
@@ -955,7 +965,7 @@ const OverdraftApp = {
           </div>
         </td>
       </tr>
-    `).join('');
+    `;}).join('');
     if (window.lucide) lucide.createIcons();
   },
 

@@ -213,20 +213,30 @@
         const records = [];
         snapshot.forEach(doc => {
           const d = doc.data();
+          const p = (d.payload && typeof d.payload === 'object') ? d.payload : {};
+          const branchCode = d.branchCode || p.branchCode || '99';
+          const branchName = d.branchName || d.branch || p.branchName || p.branch || ('Branch ' + branchCode);
+          const timeStr = d.timestamp || p.timestamp || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toLocaleString('en-IN') : (d.updatedAtIso ? new Date(d.updatedAtIso).toLocaleString('en-IN') : new Date().toLocaleString('en-IN')));
+
           records.push({
+            ...p,
+            ...d,
             id: doc.id,
             formNo: doc.id,
-            branchCode: d.branchCode || '99',
-            customerName: d.customerName || (d.payload && d.payload.firstFullName) || 'UNNAMED',
-            customerId: d.customerId || (d.payload && d.payload.firstCustomerId) || 'TJCCB',
-            depositScheme: d.depositScheme || (d.payload && d.payload.typeOfDeposit) || 'FIXED DEPOSIT (FD)',
-            amount: d.amount || (d.payload && d.payload.deposit1Amount) || '0',
-            roi: d.roi || (d.payload && d.payload.deposit1Roi) || '0.00',
-            maturityAmount: d.maturityAmount || (d.payload && d.payload.deposit1MaturityAmount) || '',
-            tenure: d.tenure || '',
+            branchCode: branchCode,
+            branch: branchName,
+            branchName: branchName,
+            customerName: d.customerName || p.firstFullName || p.customerName || 'UNNAMED',
+            customerId: d.customerId || p.firstCustomerId || p.customerId || 'TJCCB',
+            depositScheme: d.depositScheme || p.typeOfDeposit || p.depositScheme || 'FIXED DEPOSIT (FD)',
+            amount: d.amount || p.deposit1Amount || p.amount || '0',
+            roi: d.roi || p.deposit1Roi || p.roi || '0.00',
+            maturityAmount: d.maturityAmount || p.deposit1MaturityAmount || p.maturityAmount || '',
+            tenure: d.tenure || p.tenure || `${p.deposit1Years || 0}Y ${p.deposit1Months || 0}M ${p.deposit1Days || 0}D`,
+            timestamp: timeStr,
             status: d.status || 'ACTIVE',
             updatedAt: d.updatedAtIso || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
-            data: d.payload || d
+            data: p
           });
         });
 
@@ -271,16 +281,26 @@
         const records = [];
         snapshot.forEach(doc => {
           const d = doc.data();
+          const p = (d.payload && typeof d.payload === 'object') ? d.payload : {};
+          const branchCode = d.branchCode || p.branchCode || '99';
+          const branchName = d.branchName || d.branch || p.branchName || p.branch || ('Branch ' + branchCode);
+          const timeStr = d.timestamp || p.timestamp || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toLocaleString('en-IN') : (d.updatedAtIso ? new Date(d.updatedAtIso).toLocaleString('en-IN') : new Date().toLocaleString('en-IN')));
+
           records.push({
+            ...p,
+            ...d,
             id: doc.id,
             loanNo: doc.id,
-            branchCode: d.branchCode || '99',
-            customerName: d.customerName || (d.payload && d.payload.customerName) || 'UNNAMED',
-            customerId: d.customerId || (d.payload && d.payload.customerId) || '',
-            amount: d.amount || (d.payload && d.payload.loanAmount) || '0',
+            branchCode: branchCode,
+            branch: branchName,
+            branchName: branchName,
+            customerName: d.customerName || p.customerName || p.applicantName || 'UNNAMED',
+            customerId: d.customerId || p.customerId || '',
+            amount: d.amount || p.loanAmount || p.sanctionAmount || '0',
+            timestamp: timeStr,
             status: d.status || 'ACTIVE',
             updatedAt: d.updatedAtIso || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
-            data: d.payload || d
+            data: p
           });
         });
 
@@ -324,16 +344,26 @@
         const records = [];
         snapshot.forEach(doc => {
           const d = doc.data();
+          const p = (d.payload && typeof d.payload === 'object') ? d.payload : {};
+          const branchCode = d.branchCode || p.branchCode || '99';
+          const branchName = d.branchName || d.branch || p.branchName || p.branch || ('Branch ' + branchCode);
+          const timeStr = d.timestamp || p.timestamp || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toLocaleString('en-IN') : (d.updatedAtIso ? new Date(d.updatedAtIso).toLocaleString('en-IN') : new Date().toLocaleString('en-IN')));
+
           records.push({
+            ...p,
+            ...d,
             id: doc.id,
             accountNo: doc.id,
-            branchCode: d.branchCode || '99',
-            customerName: d.customerName || (d.payload && d.payload.customerName) || 'UNNAMED',
-            customerId: d.customerId || (d.payload && d.payload.customerId) || '',
-            amount: d.amount || (d.payload && d.payload.odLimit) || '0',
+            branchCode: branchCode,
+            branch: branchName,
+            branchName: branchName,
+            customerName: d.customerName || (p.applicant1 && p.applicant1.name) || p.customerName || 'UNNAMED',
+            customerId: d.customerId || (p.applicant1 && p.applicant1.id) || p.customerId || '',
+            amount: d.amount || p.odLimit || p.loanAmount || '0',
+            timestamp: timeStr,
             status: d.status || 'ACTIVE',
             updatedAt: d.updatedAtIso || (d.updatedAt && d.updatedAt.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString()),
-            data: d.payload || d
+            data: p
           });
         });
 
@@ -414,9 +444,14 @@
     const tenure = record.tenure || `${formData.deposit1Years || 0}Y ${formData.deposit1Months || 0}M ${formData.deposit1Days || 0}D`;
 
     const nowIso = new Date().toISOString();
+    const branchName = record.branchName || record.branch || formData.branchName || formData.branch || branchInfo.branchName || ('Branch ' + cleanBranch);
+    const timestampStr = record.timestamp || (new Date().toLocaleString('en-IN'));
+
     const docPayload = {
       id: cleanId,
       branchCode: cleanBranch,
+      branchName: branchName,
+      branch: branchName,
       status: record.status || 'ACTIVE',
       customerName: custName,
       customerId: custId,
@@ -425,6 +460,7 @@
       roi: roi,
       maturityAmount: maturityAmount,
       tenure: tenure,
+      timestamp: timestampStr,
       payload: formData,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAtIso: nowIso,
@@ -495,13 +531,19 @@
     const amount = loan.amount || loanPayload.loanAmount || loanPayload.sanctionAmount || '0';
 
     const nowIso = new Date().toISOString();
+    const branchName = loan.branchName || loan.branch || loanPayload.branchName || loanPayload.branch || branchInfo.branchName || ('Branch ' + cleanBranch);
+    const timestampStr = loan.timestamp || (new Date().toLocaleString('en-IN'));
+
     const docPayload = {
       id: cleanId,
       branchCode: cleanBranch,
+      branchName: branchName,
+      branch: branchName,
       status: loan.status || 'ACTIVE',
       customerName: custName,
       customerId: custId,
       amount: amount,
+      timestamp: timestampStr,
       payload: loanPayload,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAtIso: nowIso,
@@ -578,13 +620,19 @@
     const amount = odData.amount || payload.odLimit || payload.loanAmount || '0';
 
     const nowIso = new Date().toISOString();
+    const branchName = odData.branchName || odData.branch || payload.branchName || payload.branch || branchInfo.branchName || ('Branch ' + cleanBranch);
+    const timestampStr = odData.timestamp || (new Date().toLocaleString('en-IN'));
+
     const docPayload = {
       id: cleanId,
       branchCode: cleanBranch,
+      branchName: branchName,
+      branch: branchName,
       status: odData.status || 'ACTIVE',
       customerName: custName,
       customerId: custId,
       amount: amount,
+      timestamp: timestampStr,
       payload: payload,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAtIso: nowIso,

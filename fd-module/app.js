@@ -1806,23 +1806,31 @@ const FDApp = {
     `;
 
     sortedEntries.forEach((item, idx) => {
-      const amt = parseFloat(item.amount || 0);
+      const amt = parseFloat(item.amount || (item.data && item.data.deposit1Amount) || 0);
       totalAmount += amt;
 
       const safeId = encodeURIComponent(item.id);
+      const branchDisplay = item.branch || item.branchName || (item.data && (item.data.branchName || item.data.branch)) || (item.branchCode ? ('Branch ' + item.branchCode) : 'HEAD OFFICE');
+      const timeDisplay = item.timestamp || (item.updatedAt ? new Date(item.updatedAt).toLocaleString('en-IN') : (item.createdAt ? (typeof item.createdAt === 'number' ? new Date(item.createdAt).toLocaleString('en-IN') : item.createdAt) : '-'));
+      const custDisplay = item.customerName || (item.data && item.data.firstFullName) || 'UNNAMED';
+      const custIdDisplay = item.customerId || (item.data && item.data.firstCustomerId) || '-';
+      const schemeDisplay = item.depositScheme || (item.data && item.data.typeOfDeposit) || 'FIXED DEPOSIT (FD)';
+      const tenureDisplay = item.tenure || (item.data ? `${item.data.deposit1Years || 0}Y ${item.data.deposit1Months || 0}M ${item.data.deposit1Days || 0}D` : '');
+      const roiDisplay = item.roi || (item.data && item.data.deposit1Roi) || '-';
+      const maturityDisplay = item.maturityAmount || (item.data && item.data.deposit1MaturityAmount) || '-';
 
       html += `
         <tr class="border-b hover:bg-blue-50/50 font-medium transition ${idx === 0 ? 'bg-amber-50/40' : ''}">
           <td class="p-3 font-bold text-center text-slate-700">${idx + 1}</td>
           <td class="p-3 font-mono font-black text-blue-950">${item.id} ${idx === 0 ? '<span class="text-[9px] bg-emerald-600 text-white px-1.5 py-0.2 rounded uppercase ml-1">New</span>' : ''}</td>
-          <td class="p-3 font-mono font-bold text-slate-800">${item.customerId || '-'}</td>
-          <td class="p-3 font-black text-slate-900">${item.customerName}</td>
-          <td class="p-3 font-semibold text-slate-700">${item.branch}</td>
-          <td class="p-3 text-slate-800 font-semibold">${item.depositScheme}<br><span class="text-[10px] text-slate-500 font-bold">${item.tenure || ''}</span></td>
+          <td class="p-3 font-mono font-bold text-slate-800">${custIdDisplay}</td>
+          <td class="p-3 font-black text-slate-900">${custDisplay}</td>
+          <td class="p-3 font-semibold text-slate-700">${branchDisplay}</td>
+          <td class="p-3 text-slate-800 font-semibold">${schemeDisplay}<br><span class="text-[10px] text-slate-500 font-bold">${tenureDisplay}</span></td>
           <td class="p-3 text-right font-black text-blue-950 text-sm">₹ ${amt.toLocaleString('en-IN')}</td>
-          <td class="p-3 text-center font-black text-amber-700 bg-amber-50/70 border-x border-amber-200">${item.roi || '-'}%</td>
-          <td class="p-3 text-right font-bold text-emerald-800">${item.maturityAmount || '-'}</td>
-          <td class="p-3 text-slate-600 text-[11px]">${item.timestamp}</td>
+          <td class="p-3 text-center font-black text-amber-700 bg-amber-50/70 border-x border-amber-200">${roiDisplay}%</td>
+          <td class="p-3 text-right font-bold text-emerald-800">${maturityDisplay}</td>
+          <td class="p-3 text-slate-600 text-[11px]">${timeDisplay}</td>
           <td class="p-3 text-center">
             <div class="flex items-center justify-center gap-1.5">
               <!-- Edit Action -->
